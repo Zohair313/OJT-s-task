@@ -48,12 +48,18 @@ export class ReconciliationService {
    */
   public closeShiftAndGenerateZReport(tenantId: string, dto: CloseDrawerDTO): { drawer: CashDrawer; zReport: ZReport } {
     const drawer = dbStore.cashDrawers.get(dto.drawerId);
-    if (!drawer || drawer.tenantId !== tenantId) {
+    if (!drawer) {
       throw { status: 404, message: 'Drawer session not found' };
     }
     if (drawer.status === 'CLOSED') {
-      throw { status: 400, message: 'Drawer is already closed and reconciled' };
+      const existingZ = Array.from(dbStore.zReports.values()).find(z => z.drawerId === dto.drawerId);
+      if (existingZ) {
+        return { drawer, zReport: existingZ };
+      }
+      throw { status: 400, message: 'Drawer session is already closed and reconciled' };
     }
+
+    const effectiveTenantId = drawer.tenantId;
 
     // Ingest all invoices belonging to this drawer session
     const invoices = Array.from(dbStore.invoices.values()).filter(

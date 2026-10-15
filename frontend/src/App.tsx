@@ -584,6 +584,26 @@ export function App() {
             placeholder="Scan barcode with hardware reader or search by product name, SKU, or generic formula..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const q = (e.currentTarget.value || searchQuery).trim();
+                if (q.length > 0) {
+                  const exactMatch = searchResults.find(
+                    r => r.barcode === q || r.sku.toLowerCase() === q.toLowerCase()
+                  );
+                  if (exactMatch) {
+                    handleBarcodeScanned(exactMatch.barcode || exactMatch.sku);
+                  } else if (searchResults.length > 0 && isNaN(Number(q))) {
+                    handleBarcodeScanned(searchResults[0].barcode || searchResults[0].sku || q);
+                  } else {
+                    handleBarcodeScanned(q);
+                  }
+                  setSearchQuery('');
+                  setSearchResults([]);
+                }
+              }
+            }}
             style={{
               width: '100%',
               height: '42px',

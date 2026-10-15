@@ -221,7 +221,7 @@ apiRouter.post('/drawers/close-z-report', (req: Request, res: Response) => {
     const result = reconciliationService.closeShiftAndGenerateZReport(tenantId, req.body);
     res.json(result);
   } catch (err: any) {
-    res.status(err.status || 500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.code || 'DRAWER_ERROR', message: err.message || 'Error processing drawer' });
   }
 });
 

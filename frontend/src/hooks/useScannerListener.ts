@@ -10,8 +10,8 @@ interface UseScannerListenerOptions {
 
 export function useScannerListener({
   onScan,
-  maxInterKeyDeltaMs = 40,
-  minBarcodeLength = 4,
+  maxInterKeyDeltaMs = 90,
+  minBarcodeLength = 3,
   enabled = true
 }: UseScannerListenerOptions) {
   const [lastScannedBarcode, setLastScannedBarcode] = useState<string>('');
@@ -21,12 +21,19 @@ export function useScannerListener({
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
   const scanStartTimeRef = useRef<number>(0);
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
 
   useEffect(() => {
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e || typeof e.key !== 'string') return;
+
+      // Don't intercept if user is typing into an input or textarea
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (isInput) return;
 
       const now = performance.now();
       const delta = now - lastKeyTimeRef.current;
@@ -45,7 +52,7 @@ export function useScannerListener({
 
           // Play confirmation beep and dispatch
           playScannerBeep(true);
-          onScan(buffer);
+          onScanRef.current(buffer);
         } else {
           bufferRef.current = '';
         }
@@ -63,7 +70,6 @@ export function useScannerListener({
         }
       } else {
         // Slow keystroke: user is typing manually.
-        // If they type into an input, let the browser handle it.
         bufferRef.current = (e.key && e.key.length === 1) ? e.key : '';
         scanStartTimeRef.current = now;
       }
@@ -71,7 +77,7 @@ export function useScannerListener({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onScan, maxInterKeyDeltaMs, minBarcodeLength, enabled]);
+  }, [enabled, maxInterKeyDeltaMs, minBarcodeLength]);
 
   return {
     lastScannedBarcode,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BarcodeSvg } from './BarcodeSvg';
 
 interface InvoiceItem {
@@ -49,7 +49,8 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
   format,
   onClose
 }) => {
-  const is58mm = format === '58mm';
+  const [selectedFormat, setSelectedFormat] = useState<'80mm' | '58mm'>(format);
+  const is58mm = selectedFormat === '58mm';
 
   const formatCurrency = (amount: number | string | undefined | null): string => {
     if (amount === undefined || amount === null) return '$0.00';
@@ -66,79 +67,126 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '440px', padding: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>🖨️</span>
-            <h3 style={{ fontSize: '16px', fontWeight: 700 }}>
-              Thermal Receipt Preview ({format.toUpperCase()})
+    <div className="modal-overlay" style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="modal-content" style={{ maxWidth: '440px', width: '100%', padding: '16px', background: 'var(--bg-surface)', maxHeight: '92vh', overflowY: 'auto' }}>
+        
+        {/* Header Bar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '18px' }}>🖨️</span>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Thermal Receipt ({selectedFormat.toUpperCase()})
             </h3>
           </div>
+          
+          {/* Format Toggle Pill */}
+          <div style={{ display: 'flex', background: 'var(--bg-input)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', padding: '2px', gap: '2px' }}>
+            <button
+              onClick={() => setSelectedFormat('80mm')}
+              style={{
+                padding: '3px 8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                borderRadius: '3px',
+                background: selectedFormat === '80mm' ? 'var(--emerald-500)' : 'transparent',
+                color: selectedFormat === '80mm' ? '#0B0F19' : 'var(--text-secondary)'
+              }}
+            >
+              80mm
+            </button>
+            <button
+              onClick={() => setSelectedFormat('58mm')}
+              style={{
+                padding: '3px 8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                borderRadius: '3px',
+                background: selectedFormat === '58mm' ? 'var(--emerald-500)' : 'transparent',
+                color: selectedFormat === '58mm' ? '#0B0F19' : 'var(--text-secondary)'
+              }}
+            >
+              58mm
+            </button>
+          </div>
+
           <button
             onClick={onClose}
-            style={{ background: 'transparent', color: '#94A3B8', fontSize: '18px', padding: '4px' }}
+            style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '16px', padding: '4px' }}
           >
             ✕
           </button>
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
           <button
             onClick={handlePrint}
             style={{
               flex: 1,
-              background: 'var(--color-primary)',
-              color: '#FFF',
-              padding: '10px',
-              borderRadius: 'var(--radius-md)',
+              background: 'var(--emerald-500)',
+              color: '#0B0F19',
+              padding: '8px',
+              borderRadius: 'var(--radius-sm)',
               fontWeight: 700,
+              fontSize: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px'
             }}
           >
-            <span>🖨️</span> PRINT RECEIPT (window.print)
+            <span>🖨️</span> Print Receipt
           </button>
           <button
             onClick={onClose}
             style={{
-              background: 'var(--color-surface-elevated)',
-              color: '#F8FAFC',
-              padding: '10px 16px',
-              borderRadius: 'var(--radius-md)'
+              background: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+              padding: '8px 14px',
+              fontSize: '12px',
+              fontWeight: 600,
+              borderRadius: 'var(--radius-sm)'
             }}
           >
             Close
           </button>
         </div>
 
-        {/* Printable Thermal Container */}
+        {/* Snug Authentic Thermal Paper Container */}
         <div
           id="printable-thermal-receipt"
           className={`thermal-paper ${is58mm ? 'thermal-paper-58mm' : 'thermal-paper-80mm'}`}
-          style={{ margin: '0 auto', borderRadius: '4px' }}
+          style={{
+            margin: '0 auto',
+            borderRadius: '4px',
+            padding: is58mm ? '12px 10px 14px 10px' : '14px 14px 16px 14px',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.45)',
+            background: '#FFFFFF',
+            color: '#000000',
+            width: is58mm ? '280px' : '350px',
+            maxWidth: '100%',
+            boxSizing: 'border-box'
+          }}
         >
           {/* Store Header */}
-          <div style={{ textAlign: 'center', marginBottom: '6px' }}>
-            <div style={{ fontWeight: 800, fontSize: is58mm ? '13px' : '15px' }}>{store.name}</div>
-            <div style={{ fontSize: '9px', color: '#333' }}>{store.address}</div>
-            <div style={{ fontSize: '9px', color: '#333' }}>Tel: {store.phone}</div>
-            <div style={{ fontSize: '9px', fontWeight: 600, marginTop: '2px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+            <div style={{ fontWeight: 800, fontSize: is58mm ? '12px' : '14px', lineHeight: 1.2 }}>{store.name}</div>
+            <div style={{ fontSize: '8.5px', color: '#333', marginTop: '2px' }}>{store.address}</div>
+            <div style={{ fontSize: '8.5px', color: '#333' }}>Tel: {store.phone}</div>
+            <div style={{ fontSize: '8.5px', fontWeight: 600, marginTop: '1px' }}>
               TAX REG / NTN: {store.taxIdentifier}
             </div>
           </div>
 
-          <div className="thermal-dashed" />
+          <div className="thermal-dashed" style={{ margin: '4px 0' }} />
 
           {/* Invoice Meta */}
-          <div style={{ fontSize: '9.5px', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '9px', display: 'flex', justifyContent: 'space-between' }}>
             <span>Invoice: #{invoice.invoiceNumber}</span>
             <span>{new Date(invoice.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
-          <div style={{ fontSize: '9px', color: '#444' }}>
+          <div style={{ fontSize: '8.5px', color: '#444' }}>
             Date: {new Date(invoice.createdAt).toLocaleDateString()} | Cashier: Sarah J.
           </div>
 
@@ -146,9 +194,9 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
           {store.isPharmacy && (invoice.patientId || invoice.doctorLicense) && (
             <div style={{
               border: '1px solid #000',
-              padding: '4px',
-              margin: '6px 0',
-              fontSize: '8.5px',
+              padding: '3px 4px',
+              margin: '4px 0',
+              fontSize: '8px',
               background: '#FAFAFA'
             }}>
               <div style={{ fontWeight: 700 }}>CLINICAL PRESCRIPTION DATA:</div>
@@ -158,30 +206,32 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
             </div>
           )}
 
-          <div className="thermal-dashed" />
+          <div className="thermal-dashed" style={{ margin: '4px 0' }} />
 
-          {/* Line Items Table */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: is58mm ? '9px' : '10.5px' }}>
+          {/* Line Items Table with Dedicated Column Widths & Spacing */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: is58mm ? '8.5px' : '9.5px', tableLayout: 'fixed' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #000' }}>
-                <th style={{ textAlign: 'left', paddingBottom: '2px' }}>ITEM / BATCH</th>
-                <th style={{ textAlign: 'center', paddingBottom: '2px' }}>QTY</th>
-                <th style={{ textAlign: 'right', paddingBottom: '2px' }}>PRICE</th>
-                <th style={{ textAlign: 'right', paddingBottom: '2px' }}>TOTAL</th>
+                <th style={{ textAlign: 'left', paddingBottom: '3px', width: '42%' }}>ITEM / BATCH</th>
+                <th style={{ textAlign: 'center', paddingBottom: '3px', width: '11%' }}>QTY</th>
+                <th style={{ textAlign: 'right', paddingBottom: '3px', width: '23%', paddingRight: '8px' }}>PRICE</th>
+                <th style={{ textAlign: 'right', paddingBottom: '3px', width: '24%' }}>TOTAL</th>
               </tr>
             </thead>
             <tbody>
               {invoice.items.map((item, idx) => (
                 <tr key={idx} style={{ borderBottom: '1px dotted #CCC' }}>
-                  <td style={{ padding: '3px 0' }}>
-                    <div style={{ fontWeight: 600 }}>{item.productName}</div>
-                    <div style={{ fontSize: '8px', color: '#555' }}>
+                  <td style={{ padding: '3px 4px 3px 0', wordBreak: 'break-word' }}>
+                    <div style={{ fontWeight: 600, lineHeight: 1.2 }}>{item.productName}</div>
+                    <div style={{ fontSize: '7.5px', color: '#555', marginTop: '1px' }}>
                       Lot: {item.batchNumber} | Exp: {item.expiryDate}
                     </div>
                   </td>
-                  <td style={{ textAlign: 'center', padding: '3px 0' }}>{item.quantity}</td>
-                  <td style={{ textAlign: 'right', padding: '3px 0' }}>{formatCurrency(item.unitPrice)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, padding: '3px 0' }}>
+                  <td style={{ textAlign: 'center', padding: '3px 0', verticalAlign: 'top' }}>{item.quantity}</td>
+                  <td style={{ textAlign: 'right', padding: '3px 8px 3px 0', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                    {formatCurrency(item.unitPrice)}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, padding: '3px 0', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
                     {formatCurrency(item.lineTotal)}
                   </td>
                 </tr>
@@ -189,10 +239,10 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
             </tbody>
           </table>
 
-          <div className="thermal-dashed" />
+          <div className="thermal-dashed" style={{ margin: '4px 0' }} />
 
           {/* Totals Summary */}
-          <div style={{ fontSize: is58mm ? '9.5px' : '10.5px', lineHeight: 1.4 }}>
+          <div style={{ fontSize: is58mm ? '9px' : '10px', lineHeight: 1.35 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Subtotal:</span>
               <span>{formatCurrency(invoice.subtotal)}</span>
@@ -207,34 +257,34 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
               <span>Tax / VAT:</span>
               <span>{formatCurrency(invoice.taxAmount)}</span>
             </div>
-            <div className="thermal-dashed" />
+            <div className="thermal-dashed" style={{ margin: '3px 0' }} />
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               fontWeight: 800,
-              fontSize: is58mm ? '12px' : '14px',
-              margin: '4px 0'
+              fontSize: is58mm ? '11.5px' : '13px',
+              margin: '2px 0'
             }}>
               <span>GRAND TOTAL:</span>
               <span>{formatCurrency(invoice.grandTotal)}</span>
             </div>
-            <div className="thermal-dashed" />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
+            <div className="thermal-dashed" style={{ margin: '3px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px' }}>
               <span>Payment ({invoice.paymentMethod}):</span>
               <span>{formatCurrency(invoice.tenderedAmount)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 600 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px', fontWeight: 600 }}>
               <span>Change Due:</span>
               <span>{formatCurrency(invoice.changeDue)}</span>
             </div>
           </div>
 
-          <div className="thermal-dashed" />
+          <div className="thermal-dashed" style={{ margin: '4px 0' }} />
 
-          {/* Footer Barcode Representation */}
-          <div style={{ textAlign: 'center', margin: '8px 0 4px 0' }}>
-            <BarcodeSvg value={invoice.invoiceNumber.replace(/[^0-9]/g, '').slice(-12) || '890100000001'} width={is58mm ? 160 : 200} height={38} />
-            <div style={{ fontSize: '8px', color: '#555', marginTop: '4px' }}>
+          {/* Footer Barcode */}
+          <div style={{ textAlign: 'center', margin: '4px 0 2px 0' }}>
+            <BarcodeSvg value={invoice.invoiceNumber.replace(/[^0-9]/g, '').slice(-12) || '890100000001'} width={is58mm ? 140 : 180} height={32} />
+            <div style={{ fontSize: '7.5px', color: '#555', marginTop: '2px' }}>
               Thank you for your visit! Goods once sold are returnable within 7 days.
             </div>
           </div>

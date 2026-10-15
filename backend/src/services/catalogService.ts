@@ -47,14 +47,47 @@ export class CatalogService {
    */
   public async lookupByBarcodeOrSku(tenantId: string, code: string): Promise<Product | null> {
     const cleanCode = code.trim();
+    const cleanLower = cleanCode.toLowerCase();
+    const strippedCode = cleanCode.replace(/^0+/, '');
+
+    // 1. Primary: Exact match in active tenant
     let product = Array.from(dbStore.products.values()).find(
-      p => p.tenantId === tenantId && (p.barcode === cleanCode || p.sku.toLowerCase() === cleanCode.toLowerCase())
+      p => p.tenantId === tenantId && (
+        p.barcode === cleanCode || 
+        p.sku.toLowerCase() === cleanLower ||
+        p.id === cleanCode ||
+        (strippedCode.length > 0 && p.barcode.replace(/^0+/, '') === strippedCode)
+      )
     );
 
-    // Enterprise fallback: if not in current branch/tenant, check all branches
+    // 2. Secondary: Cross-branch fallback
     if (!product) {
       product = Array.from(dbStore.products.values()).find(
-        p => (p.barcode === cleanCode || p.sku.toLowerCase() === cleanCode.toLowerCase())
+        p => (
+          p.barcode === cleanCode || 
+          p.sku.toLowerCase() === cleanLower ||
+          p.id === cleanCode ||
+          (strippedCode.length > 0 && p.barcode.replace(/^0+/, '') === strippedCode)
+        )
+      );
+    }
+
+    // 3. Fallback: Search by product name / generic name if user pressed Enter on query
+    if (!product) {
+      product = Array.from(dbStore.products.values()).find(
+        p => (tenantId === 'all' || p.tenantId === tenantId) && (
+          p.name.toLowerCase().includes(cleanLower) ||
+          (p.genericName && p.genericName.toLowerCase().includes(cleanLower))
+        )
+      );
+    }
+
+    if (!product) {
+      product = Array.from(dbStore.products.values()).find(
+        p => (
+          p.name.toLowerCase().includes(cleanLower) ||
+          (p.genericName && p.genericName.toLowerCase().includes(cleanLower))
+        )
       );
     }
 
@@ -218,6 +251,69 @@ export class CatalogService {
         if (batch.productId === product.id) {
           batch.sellingPrice = newPrice;
         }
+      }
+    }
+
+    // If stock / quantity is provided, update physical inventory stock
+    if ((dto as any).stock !== undefined && !isNaN(Number((dto as any).stock))) {
+      const targetStock = Math.max(0, parseInt((dto as any).stock));
+      const batches = Array.from(dbStore.batches.values()).filter(b => b.productId === product.id);
+      if (batches.length > 0) {
+        const primaryBatch = batches[0];
+        const stockRecord = dbStore.stocks.get(primaryBatch.id);
+        const oldQty = stockRecord ? stockRecord.quantity : 0;
+        if (stockRecord) {
+          stockRecord.quantity = targetStock;
+          stockRecord.updatedAt = new Date().toISOString();
+        } else {
+          dbStore.stocks.set(primaryBatch.id, {
+            id: uuidv4(),
+            tenantId: product.tenantId,
+            batchId: primaryBatch.id,
+            quantity: targetStock,
+            reservedQuantity: 0,
+            shelfLocation: 'Storage Main',
+            updatedAt: new Date().toISOString()
+          });
+        }
+        // Record audit movement
+        dbStore.stockMovements.push({
+          id: uuidv4(),
+          tenantId: product.tenantId,
+          batchId: primaryBatch.id,
+          movementType: 'AUDIT_ADJUSTMENT',
+          quantityChanged: targetStock - oldQty,
+          quantityAfter: targetStock,
+          referenceNote: `Manual Admin Stock Adjustment by Store Manager`,
+          createdAt: new Date().toISOString()
+        });
+      } else {
+        // If product has no batches yet, create initial batch with this stock
+        const batchId = uuidv4();
+        const expDate = new Date();
+        expDate.setFullYear(expDate.getFullYear() + 2);
+        const newBatch: Batch = {
+          id: batchId,
+          tenantId: product.tenantId,
+          productId: product.id,
+          batchNumber: `LOT-ADJ-${Date.now().toString().slice(-4)}`,
+          expiryDate: expDate.toISOString().slice(0, 10),
+          costPrice: 5.0,
+          sellingPrice: dto.sellingPrice || 10.0,
+          mrp: (dto.sellingPrice || 10.0) * 1.2,
+          isQuarantined: false,
+          createdAt: new Date().toISOString()
+        };
+        dbStore.batches.set(batchId, newBatch);
+        dbStore.stocks.set(batchId, {
+          id: uuidv4(),
+          tenantId: product.tenantId,
+          batchId,
+          quantity: targetStock,
+          reservedQuantity: 0,
+          shelfLocation: 'Storage Main',
+          updatedAt: new Date().toISOString()
+        });
       }
     }
 
