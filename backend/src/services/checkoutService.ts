@@ -150,9 +150,26 @@ export class CheckoutService {
       const roundOff = Number((roundOffCents / 100).toFixed(2));
 
       // Validate payment tender
-      const tendered = (payment.tenderedAmount !== undefined && payment.tenderedAmount > 0)
-        ? payment.tenderedAmount
+      let tendered = (payment.tenderedAmount !== undefined && payment.tenderedAmount > 0)
+        ? Number(payment.tenderedAmount)
         : grandTotal;
+
+      if (!isFinite(tendered) || isNaN(tendered) || tendered < 0) {
+        throw {
+          status: 400,
+          message: 'Invalid tender amount received.'
+        };
+      }
+
+      // Sane upper limit protection against accidental key spam or exponential overflows
+      const MAX_TENDER_LIMIT = 100000;
+      if (tendered > MAX_TENDER_LIMIT) {
+        throw {
+          status: 400,
+          message: `Tendered amount exceeds maximum register limit ($${MAX_TENDER_LIMIT.toLocaleString()}).`
+        };
+      }
+
       if (tendered < grandTotal && payment.method === 'CASH') {
         throw {
           status: 400,

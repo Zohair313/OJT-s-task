@@ -51,6 +51,16 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 }) => {
   const is58mm = format === '58mm';
 
+  const formatCurrency = (amount: number | string | undefined | null): string => {
+    if (amount === undefined || amount === null) return '$0.00';
+    const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
+    if (isNaN(num) || !isFinite(num)) return '$0.00';
+    if (Math.abs(num) > 10000000) {
+      return '$' + (10000000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -170,9 +180,9 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
                     </div>
                   </td>
                   <td style={{ textAlign: 'center', padding: '3px 0' }}>{item.quantity}</td>
-                  <td style={{ textAlign: 'right', padding: '3px 0' }}>${item.unitPrice.toFixed(2)}</td>
+                  <td style={{ textAlign: 'right', padding: '3px 0' }}>{formatCurrency(item.unitPrice)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, padding: '3px 0' }}>
-                    ${item.lineTotal.toFixed(2)}
+                    {formatCurrency(item.lineTotal)}
                   </td>
                 </tr>
               ))}
@@ -185,17 +195,17 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
           <div style={{ fontSize: is58mm ? '9.5px' : '10.5px', lineHeight: 1.4 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Subtotal:</span>
-              <span>${invoice.subtotal.toFixed(2)}</span>
+              <span>{formatCurrency(invoice.subtotal)}</span>
             </div>
             {invoice.discountAmount > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#C00' }}>
                 <span>Discount:</span>
-                <span>-${invoice.discountAmount.toFixed(2)}</span>
+                <span>-{formatCurrency(invoice.discountAmount)}</span>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Tax / VAT:</span>
-              <span>${invoice.taxAmount.toFixed(2)}</span>
+              <span>{formatCurrency(invoice.taxAmount)}</span>
             </div>
             <div className="thermal-dashed" />
             <div style={{
@@ -206,16 +216,16 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
               margin: '4px 0'
             }}>
               <span>GRAND TOTAL:</span>
-              <span>${invoice.grandTotal.toFixed(2)}</span>
+              <span>{formatCurrency(invoice.grandTotal)}</span>
             </div>
             <div className="thermal-dashed" />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
               <span>Payment ({invoice.paymentMethod}):</span>
-              <span>${invoice.tenderedAmount.toFixed(2)}</span>
+              <span>{formatCurrency(invoice.tenderedAmount)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 600 }}>
               <span>Change Due:</span>
-              <span>${invoice.changeDue.toFixed(2)}</span>
+              <span>{formatCurrency(invoice.changeDue)}</span>
             </div>
           </div>
 

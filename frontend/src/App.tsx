@@ -4,6 +4,7 @@ import { ThermalReceipt } from './components/ThermalReceipt';
 import { ZReportModal } from './components/ZReportModal';
 import { ConcurrencyTestModal } from './components/ConcurrencyTestModal';
 import { ScannerSimulatorModal } from './components/ScannerSimulatorModal';
+import { AdminPanel } from './components/AdminPanel';
 import { playScannerBeep } from './utils/audio';
 
 interface CartLineItem {
@@ -27,6 +28,27 @@ interface CartLineItem {
 }
 
 export function App() {
+  // Navigation View ('pos' | 'admin')
+  const [currentView, setCurrentView] = useState<'pos' | 'admin'>(() => {
+    return window.location.pathname.startsWith('/admin') ? 'admin' : 'pos';
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentView(window.location.pathname.startsWith('/admin') ? 'admin' : 'pos');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateTo = (view: 'pos' | 'admin') => {
+    setCurrentView(view);
+    const targetPath = view === 'admin' ? '/admin' : '/';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({}, '', targetPath);
+    }
+  };
+
   // Domain Tenant Context
   const [tenantId, setTenantId] = useState<string>('t-pharma-002');
   const [tenants, setTenants] = useState<any[]>([]);
@@ -193,14 +215,16 @@ export function App() {
     }, 3500);
   };
 
-  // Hardware Scanner Listener
+  // Hardware Scanner Listener (Active only on POS Counter)
   useScannerListener({
-    onScan: handleBarcodeScanned
+    onScan: handleBarcodeScanned,
+    enabled: currentView === 'pos'
   });
 
   // Global Keyboard Shortcuts (F1, F2, F4, F9, F12, Ctrl+K, Esc)
   useEffect(() => {
     const handleGlobalKeys = (e: KeyboardEvent) => {
+      if (currentView !== 'pos') return;
       if (e.key === 'F1') {
         e.preventDefault();
         setShowShortcutsHelp(prev => !prev);
@@ -243,7 +267,9 @@ export function App() {
   const totalItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const parsedTender = parseFloat(tenderedAmount);
-  const tenderedNumeric = (!isNaN(parsedTender) && parsedTender > 0) ? parsedTender : cartGrandTotal;
+  const tenderedNumeric = (!isNaN(parsedTender) && isFinite(parsedTender) && parsedTender > 0) 
+    ? Math.min(parsedTender, 100000) 
+    : cartGrandTotal;
   const changeDue = Math.max(0, tenderedNumeric - cartGrandTotal);
 
   const updateQuantity = (cartId: string, newQty: number) => {
@@ -312,6 +338,16 @@ export function App() {
     }
   };
 
+  if (currentView === 'admin') {
+    return (
+      <AdminPanel
+        tenantId={tenantId}
+        onTenantChange={setTenantId}
+        onBackToPos={() => navigateTo('pos')}
+      />
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
       {/* 1. CLEAN TOP NAVBAR */}
@@ -344,6 +380,52 @@ export function App() {
             <span style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               PulsePOS
             </span>
+          </div>
+
+          {/* Navigation Pill: POS vs Admin */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '2px',
+            gap: '2px'
+          }}>
+            <button
+              onClick={() => navigateTo('pos')}
+              style={{
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: 'var(--radius-xs)',
+                background: 'var(--bg-surface-elevated)',
+                color: '#FFF',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <span>🛒</span> POS Counter
+            </button>
+            <button
+              onClick={() => navigateTo('admin')}
+              style={{
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: 'var(--radius-xs)',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                border: '1px solid transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <span>⚙️</span> Product Admin
+            </button>
           </div>
 
           <div style={{ height: '18px', width: '1px', background: 'var(--border-default)' }} />
@@ -989,9 +1071,9 @@ export function App() {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>CASH TENDERED</span>
-                {changeDue > 0 && (
+                {changeDue > 0 && isFinite(changeDue) && changeDue <= 100000 && (
                   <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--emerald-500)', fontFamily: 'var(--font-mono)' }}>
-                    Change: ${changeDue.toFixed(2)}
+                    Change: ${changeDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 )}
               </div>
@@ -999,11 +1081,22 @@ export function App() {
               <input
                 type="number"
                 min="0"
+                max="100000"
                 step="any"
                 autoComplete="off"
                 placeholder={`$${cartGrandTotal.toFixed(2)} (Exact)`}
                 value={tenderedAmount}
-                onChange={e => setTenderedAmount(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val.length <= 8 && !/[eE\-]/.test(val)) {
+                    setTenderedAmount(val);
+                  }
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'e' || e.key === 'E' || e.key === '-' || e.key === '+') {
+                    e.preventDefault();
+                  }
+                }}
                 style={{
                   width: '100%',
                   fontSize: '16px',

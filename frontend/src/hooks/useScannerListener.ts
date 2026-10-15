@@ -5,12 +5,14 @@ interface UseScannerListenerOptions {
   onScan: (barcode: string) => void;
   maxInterKeyDeltaMs?: number;
   minBarcodeLength?: number;
+  enabled?: boolean;
 }
 
 export function useScannerListener({
   onScan,
   maxInterKeyDeltaMs = 40,
-  minBarcodeLength = 4
+  minBarcodeLength = 4,
+  enabled = true
 }: UseScannerListenerOptions) {
   const [lastScannedBarcode, setLastScannedBarcode] = useState<string>('');
   const [lastScanLatencyMs, setLastScanLatencyMs] = useState<number>(0);
@@ -21,6 +23,8 @@ export function useScannerListener({
   const scanStartTimeRef = useRef<number>(0);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e || typeof e.key !== 'string') return;
 
@@ -67,7 +71,7 @@ export function useScannerListener({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onScan, maxInterKeyDeltaMs, minBarcodeLength]);
+  }, [onScan, maxInterKeyDeltaMs, minBarcodeLength, enabled]);
 
   return {
     lastScannedBarcode,

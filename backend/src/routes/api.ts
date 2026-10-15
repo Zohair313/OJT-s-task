@@ -29,15 +29,22 @@ apiRouter.get('/tenants', (req: Request, res: Response) => {
   res.json(tenants);
 });
 
+// Categories list
+apiRouter.get('/categories', (req: Request, res: Response) => {
+  const categories = Array.from(dbStore.categories.values());
+  res.json(categories);
+});
+
 // 1. Catalog Products (Search, Pagination, Duplicate Barcode Guard)
 apiRouter.get('/products', async (req: Request, res: Response) => {
   try {
     const tenantId = getTenantId(req);
     const search = req.query.q as string;
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limit = parseInt(req.query.limit as string) || 100;
     const offset = parseInt(req.query.offset as string) || 0;
+    const includeInactive = req.query.includeInactive === 'true';
 
-    const result = await catalogService.getProducts(tenantId, search, limit, offset);
+    const result = await catalogService.getProducts(tenantId, search, limit, offset, includeInactive);
     res.json(result);
   } catch (err: any) {
     res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
@@ -49,6 +56,26 @@ apiRouter.post('/products', async (req: Request, res: Response) => {
     const tenantId = getTenantId(req);
     const product = await catalogService.createProduct(tenantId, req.body);
     res.status(201).json(product);
+  } catch (err: any) {
+    res.status(err.status || 500).json({ error: err.code || 'ERROR', message: err.message });
+  }
+});
+
+apiRouter.put('/products/:id', async (req: Request, res: Response) => {
+  try {
+    const tenantId = getTenantId(req);
+    const updated = await catalogService.updateProduct(tenantId, req.params.id, req.body);
+    res.json(updated);
+  } catch (err: any) {
+    res.status(err.status || 500).json({ error: err.code || 'ERROR', message: err.message });
+  }
+});
+
+apiRouter.delete('/products/:id', async (req: Request, res: Response) => {
+  try {
+    const tenantId = getTenantId(req);
+    const result = await catalogService.deleteProduct(tenantId, req.params.id);
+    res.json(result);
   } catch (err: any) {
     res.status(err.status || 500).json({ error: err.code || 'ERROR', message: err.message });
   }

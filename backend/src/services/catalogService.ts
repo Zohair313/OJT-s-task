@@ -6,8 +6,10 @@ export class CatalogService {
   /**
    * Get products with optional search and tenant filtering
    */
-  public async getProducts(tenantId: string, search?: string, limit: number = 50, offset: number = 0): Promise<{ products: Product[]; total: number }> {
-    const all = Array.from(dbStore.products.values()).filter(p => p.tenantId === tenantId && p.isActive);
+  public async getProducts(tenantId: string, search?: string, limit: number = 100, offset: number = 0, includeInactive: boolean = false): Promise<{ products: Product[]; total: number }> {
+    const all = Array.from(dbStore.products.values()).filter(p => 
+      (tenantId === 'all' || p.tenantId === tenantId) && (includeInactive ? true : p.isActive)
+    );
 
     let filtered = all;
     if (search && search.trim().length > 0) {
@@ -16,6 +18,7 @@ export class CatalogService {
         p.name.toLowerCase().includes(q) ||
         p.barcode.toLowerCase().includes(q) ||
         p.sku.toLowerCase().includes(q) ||
+        (p.brand && p.brand.toLowerCase().includes(q)) ||
         (p.genericName && p.genericName.toLowerCase().includes(q))
       );
     }
@@ -23,12 +26,14 @@ export class CatalogService {
     const total = filtered.length;
     const paginated = filtered.slice(offset, offset + limit);
 
-    // Enrich with batches and total stock
+    // Enrich with batches, total stock, and category name
     const enriched = paginated.map(p => {
       const batches = this.getProductBatches(p.id);
       const totalStock = batches.reduce((sum, b) => sum + b.quantity, 0);
+      const cat = p.categoryId ? dbStore.categories.get(p.categoryId) : undefined;
       return {
         ...p,
+        categoryName: cat?.name || 'General',
         totalStock,
         batches
       };
@@ -96,22 +101,151 @@ export class CatalogService {
     const newProd: Product = {
       id: uuidv4(),
       tenantId,
-      sku: dto.sku,
-      barcode: dto.barcode,
-      name: dto.name,
-      genericName: dto.genericName,
+      sku: dto.sku.trim(),
+      barcode: dto.barcode.trim(),
+      name: dto.name.trim(),
+      genericName: dto.genericName?.trim(),
       categoryId: dto.categoryId,
-      brand: dto.brand,
+      brand: dto.brand?.trim(),
       unitOfMeasure: dto.unitOfMeasure || 'PCS',
-      defaultTaxRate: dto.defaultTaxRate !== undefined ? dto.defaultTaxRate : 5.00,
-      reorderPoint: dto.reorderPoint !== undefined ? dto.reorderPoint : 10,
+      defaultTaxRate: dto.defaultTaxRate !== undefined ? Number(dto.defaultTaxRate) : 5.00,
+      reorderPoint: dto.reorderPoint !== undefined ? Number(dto.reorderPoint) : 10,
       isPrescriptionRequired: !!dto.isPrescriptionRequired,
       isActive: true,
       createdAt: new Date().toISOString()
     };
 
     dbStore.products.set(newProd.id, newProd);
-    return newProd;
+
+    // If initialPrice / initialStock provided, create initial active batch
+    const initialPrice = (dto as any).initialPrice !== undefined ? Number((dto as any).initialPrice) : 10.00;
+    const initialStock = (dto as any).initialStock !== undefined ? Number((dto as any).initialStock) : 25;
+    if (initialStock > 0) {
+      const batchId = uuidv4();
+      const expDate = new Date();
+      expDate.setFullYear(expDate.getFullYear() + 1);
+      const batch: Batch = {
+        id: batchId,
+        tenantId,
+        productId: newProd.id,
+        batchNumber: `LOT-${new Date().getFullYear().toString().slice(-2)}-${Math.floor(100 + Math.random() * 900)}`,
+        expiryDate: expDate.toISOString().slice(0, 10),
+        costPrice: Number((initialPrice * 0.7).toFixed(2)),
+        sellingPrice: initialPrice,
+        mrp: initialPrice,
+        isQuarantined: false,
+        createdAt: new Date().toISOString()
+      };
+      const stock: InventoryStock = {
+        id: uuidv4(),
+        tenantId,
+        batchId,
+        quantity: initialStock,
+        reservedQuantity: 0,
+        shelfLocation: 'Shelf 1-A',
+        updatedAt: new Date().toISOString()
+      };
+      dbStore.batches.set(batchId, batch);
+      dbStore.stocks.set(batchId, stock);
+    }
+
+    const batches = this.getProductBatches(newProd.id);
+    const totalStock = batches.reduce((sum, b) => sum + b.quantity, 0);
+    return {
+      ...newProd,
+      totalStock,
+      batches
+    };
+  }
+
+  /**
+   * Update existing product details and optionally batch selling prices
+   */
+  public async updateProduct(
+    tenantId: string,
+    id: string,
+    dto: Partial<CreateProductDTO> & { isActive?: boolean; sellingPrice?: number }
+  ): Promise<Product> {
+    const product = dbStore.products.get(id);
+    if (!product) {
+      throw { status: 404, message: `Product ${id} not found` };
+    }
+
+    // Guard: Check for duplicate barcode if barcode is changed
+    if (dto.barcode && dto.barcode !== product.barcode) {
+      const existingBarcode = Array.from(dbStore.products.values()).find(
+        p => p.tenantId === product.tenantId && p.id !== id && p.barcode === dto.barcode
+      );
+      if (existingBarcode) {
+        throw {
+          status: 409,
+          code: 'DUPLICATE_BARCODE',
+          message: `Barcode '${dto.barcode}' is already in use by '${existingBarcode.name}' (SKU: ${existingBarcode.sku})`
+        };
+      }
+      product.barcode = dto.barcode;
+    }
+
+    // Guard: Check for duplicate SKU if SKU is changed
+    if (dto.sku && dto.sku.toLowerCase() !== product.sku.toLowerCase()) {
+      const existingSku = Array.from(dbStore.products.values()).find(
+        p => p.tenantId === product.tenantId && p.id !== id && p.sku.toLowerCase() === dto.sku!.toLowerCase()
+      );
+      if (existingSku) {
+        throw {
+          status: 409,
+          code: 'DUPLICATE_SKU',
+          message: `SKU '${dto.sku}' is already in use by '${existingSku.name}'`
+        };
+      }
+      product.sku = dto.sku;
+    }
+
+    if (dto.name !== undefined && dto.name.trim()) product.name = dto.name.trim();
+    if (dto.genericName !== undefined) product.genericName = dto.genericName.trim();
+    if (dto.categoryId !== undefined) product.categoryId = dto.categoryId;
+    if (dto.brand !== undefined) product.brand = dto.brand.trim();
+    if (dto.unitOfMeasure !== undefined) product.unitOfMeasure = dto.unitOfMeasure;
+    if (dto.defaultTaxRate !== undefined) product.defaultTaxRate = Number(dto.defaultTaxRate);
+    if (dto.reorderPoint !== undefined) product.reorderPoint = Number(dto.reorderPoint);
+    if (dto.isPrescriptionRequired !== undefined) product.isPrescriptionRequired = Boolean(dto.isPrescriptionRequired);
+    if (dto.isActive !== undefined) product.isActive = Boolean(dto.isActive);
+
+    // If sellingPrice is provided, update all active batches for this product
+    if (dto.sellingPrice !== undefined && !isNaN(Number(dto.sellingPrice))) {
+      const newPrice = Number(Number(dto.sellingPrice).toFixed(2));
+      for (const batch of dbStore.batches.values()) {
+        if (batch.productId === product.id) {
+          batch.sellingPrice = newPrice;
+        }
+      }
+    }
+
+    dbStore.products.set(product.id, product);
+
+    // Return enriched product
+    const batches = this.getProductBatches(product.id);
+    const totalStock = batches.reduce((sum, b) => sum + b.quantity, 0);
+    const cat = product.categoryId ? dbStore.categories.get(product.categoryId) : undefined;
+    return {
+      ...product,
+      categoryName: cat?.name || 'General',
+      totalStock,
+      batches
+    };
+  }
+
+  /**
+   * Soft-delete or toggle active status of product
+   */
+  public async deleteProduct(tenantId: string, id: string): Promise<{ success: boolean; message: string }> {
+    const product = dbStore.products.get(id);
+    if (!product) {
+      throw { status: 404, message: `Product ${id} not found` };
+    }
+    product.isActive = false;
+    dbStore.products.set(id, product);
+    return { success: true, message: `Product '${product.name}' deactivated successfully.` };
   }
 
   /**
