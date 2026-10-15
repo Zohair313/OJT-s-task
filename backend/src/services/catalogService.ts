@@ -42,9 +42,16 @@ export class CatalogService {
    */
   public async lookupByBarcodeOrSku(tenantId: string, code: string): Promise<Product | null> {
     const cleanCode = code.trim();
-    const product = Array.from(dbStore.products.values()).find(
+    let product = Array.from(dbStore.products.values()).find(
       p => p.tenantId === tenantId && (p.barcode === cleanCode || p.sku.toLowerCase() === cleanCode.toLowerCase())
     );
+
+    // Enterprise fallback: if not in current branch/tenant, check all branches
+    if (!product) {
+      product = Array.from(dbStore.products.values()).find(
+        p => (p.barcode === cleanCode || p.sku.toLowerCase() === cleanCode.toLowerCase())
+      );
+    }
 
     if (!product) return null;
 

@@ -123,6 +123,11 @@ export function App() {
 
       const product = data.product;
 
+      // Auto-align tenant if cross-branch item was scanned
+      if (product.tenantId && product.tenantId !== tenantId) {
+        setTenantId(product.tenantId);
+      }
+
       // Resolve FEFO Allocation for this product
       const fefoRes = await fetch('/api/v1/fefo/resolve', {
         method: 'POST',

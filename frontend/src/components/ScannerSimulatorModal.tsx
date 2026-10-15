@@ -17,22 +17,10 @@ export const ScannerSimulatorModal: React.FC<ScannerSimulatorModalProps> = ({ on
     { name: 'High-Demand 1-Stock Race Item', barcode: '9999999999999', type: 'Test', desc: 'Item used for 20-thread concurrency race testing' },
   ];
 
-  // Simulates rapid keystrokes arriving every 15ms
+  // Trigger instant barcode ingestion
   const simulateHardwareScan = (barcode: string) => {
-    let index = 0;
-    const interval = setInterval(() => {
-      if (index < barcode.length) {
-        const char = barcode[index];
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: char, bubbles: true }));
-        index++;
-      } else {
-        clearInterval(interval);
-        // Terminate with Enter key
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        onScanBarcode(barcode);
-        onClose();
-      }
-    }, 15);
+    onScanBarcode(barcode);
+    onClose();
   };
 
   return (
