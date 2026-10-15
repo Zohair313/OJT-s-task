@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { playScannerBeep } from '../utils/audio';
 
 interface UseScannerListenerOptions {
@@ -14,10 +14,6 @@ export function useScannerListener({
   minBarcodeLength = 3,
   enabled = true
 }: UseScannerListenerOptions) {
-  const [lastScannedBarcode, setLastScannedBarcode] = useState<string>('');
-  const [lastScanLatencyMs, setLastScanLatencyMs] = useState<number>(0);
-  const [isScanning, setIsScanning] = useState<boolean>(false);
-
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
   const scanStartTimeRef = useRef<number>(0);
@@ -44,10 +40,6 @@ export function useScannerListener({
         const buffer = bufferRef.current.trim();
         if (buffer.length >= minBarcodeLength) {
           e.preventDefault();
-          const latency = Math.round(now - scanStartTimeRef.current);
-          setLastScanLatencyMs(latency);
-          setLastScannedBarcode(buffer);
-          setIsScanning(false);
           bufferRef.current = '';
 
           // Play confirmation beep and dispatch
@@ -63,13 +55,12 @@ export function useScannerListener({
       if (delta < maxInterKeyDeltaMs || bufferRef.current.length === 0) {
         if (bufferRef.current.length === 0) {
           scanStartTimeRef.current = now;
-          setIsScanning(true);
         }
         if (e.key && e.key.length === 1) {
           bufferRef.current += e.key;
         }
       } else {
-        // Slow keystroke: user is typing manually.
+        // Slow keystroke outside input: reset buffer to current character
         bufferRef.current = (e.key && e.key.length === 1) ? e.key : '';
         scanStartTimeRef.current = now;
       }
@@ -78,10 +69,4 @@ export function useScannerListener({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [enabled, maxInterKeyDeltaMs, minBarcodeLength]);
-
-  return {
-    lastScannedBarcode,
-    lastScanLatencyMs,
-    isScanning
-  };
 }
