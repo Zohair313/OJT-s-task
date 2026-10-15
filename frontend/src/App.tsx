@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useScannerListener } from './hooks/useScannerListener.js';
-import { ThermalReceipt } from './components/ThermalReceipt.js';
-import { ZReportModal } from './components/ZReportModal.js';
-import { ConcurrencyTestModal } from './components/ConcurrencyTestModal.js';
-import { ScannerSimulatorModal } from './components/ScannerSimulatorModal.js';
-import { playScannerBeep } from './utils/audio.js';
+import { useScannerListener } from './hooks/useScannerListener';
+import { ThermalReceipt } from './components/ThermalReceipt';
+import { ZReportModal } from './components/ZReportModal';
+import { ConcurrencyTestModal } from './components/ConcurrencyTestModal';
+import { ScannerSimulatorModal } from './components/ScannerSimulatorModal';
+import { playScannerBeep } from './utils/audio';
 
 interface CartLineItem {
   cartId: string;

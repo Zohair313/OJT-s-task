@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { playScannerBeep } from '../utils/audio.js';
+import { playScannerBeep } from '../utils/audio';
 
 interface UseScannerListenerOptions {
   onScan: (barcode: string) => void;
