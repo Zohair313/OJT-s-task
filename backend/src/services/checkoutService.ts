@@ -150,7 +150,9 @@ export class CheckoutService {
       const roundOff = Number((roundOffCents / 100).toFixed(2));
 
       // Validate payment tender
-      const tendered = payment.tenderedAmount !== undefined ? payment.tenderedAmount : grandTotal;
+      const tendered = (payment.tenderedAmount !== undefined && payment.tenderedAmount > 0)
+        ? payment.tenderedAmount
+        : grandTotal;
       if (tendered < grandTotal && payment.method === 'CASH') {
         throw {
           status: 400,

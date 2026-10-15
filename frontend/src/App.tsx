@@ -229,7 +229,8 @@ export function App() {
   const cartGrandTotal = Math.max(0, cartSubtotal - cartDiscount + cartTax);
   const totalItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const tenderedNumeric = parseFloat(tenderedAmount) || (paymentMethod === 'CASH' ? 0 : cartGrandTotal);
+  const parsedTender = parseFloat(tenderedAmount);
+  const tenderedNumeric = (!isNaN(parsedTender) && parsedTender > 0) ? parsedTender : cartGrandTotal;
   const changeDue = Math.max(0, tenderedNumeric - cartGrandTotal);
 
   // Cart Line Mutators
@@ -755,6 +756,9 @@ export function App() {
               </div>
               <input
                 type="number"
+                min="0"
+                step="any"
+                autoComplete="off"
                 placeholder={`e.g. ${Math.ceil(cartGrandTotal)}`}
                 value={tenderedAmount}
                 onChange={e => setTenderedAmount(e.target.value)}

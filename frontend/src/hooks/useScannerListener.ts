@@ -22,6 +22,8 @@ export function useScannerListener({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e || typeof e.key !== 'string') return;
+
       const now = performance.now();
       const delta = now - lastKeyTimeRef.current;
       lastKeyTimeRef.current = now;
@@ -52,13 +54,13 @@ export function useScannerListener({
           scanStartTimeRef.current = now;
           setIsScanning(true);
         }
-        if (e.key.length === 1) {
+        if (e.key && e.key.length === 1) {
           bufferRef.current += e.key;
         }
       } else {
         // Slow keystroke: user is typing manually.
         // If they type into an input, let the browser handle it.
-        bufferRef.current = e.key.length === 1 ? e.key : '';
+        bufferRef.current = (e.key && e.key.length === 1) ? e.key : '';
         scanStartTimeRef.current = now;
       }
     };
