@@ -1,40 +1,53 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Nunito+Sans:wght@300;400;600;700;800&family=Rubik:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  /* UI-UX Pro Max Design System Tokens (Density 8/10) */
-  --color-primary: #15803D;
-  --color-primary-hover: #166534;
-  --color-on-primary: #FFFFFF;
-  --color-secondary: #22C55E;
-  --color-on-secondary: #0F172A;
-  --color-accent: #0369A1;
-  --color-accent-hover: #075985;
-  --color-on-accent: #FFFFFF;
+  /* Modern Zinc/Slate Design System (Radix / Shadcn UI Standard) */
+  --bg-app: #0B0F19;
+  --bg-surface: #111827;
+  --bg-surface-elevated: #162032;
+  --bg-surface-hover: #1E293B;
+  --bg-input: #0F172A;
 
-  --color-bg: #0F172A;
-  --color-surface: #1E293B;
-  --color-surface-hover: #273549;
-  --color-surface-elevated: #334155;
-  --color-border: #334155;
-  --color-border-subtle: #1E293B;
-  --color-text: #F8FAFC;
-  --color-text-muted: #94A3B8;
+  --border-subtle: #1E293B;
+  --border-default: #273549;
+  --border-focus: #10B981;
 
-  --color-destructive: #DC2626;
-  --color-warning: #F59E0B;
-  --color-warning-subtle: #78350F;
-  --color-success: #10B981;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-inverse: #0B0F19;
 
-  --font-sans: 'Nunito Sans', 'Rubik', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Accent Colors (Used Sparingly) */
+  --emerald-500: #10B981;
+  --emerald-600: #059669;
+  --emerald-bg: rgba(16, 185, 129, 0.1);
+  --emerald-border: rgba(16, 185, 129, 0.3);
+
+  --blue-500: #3B82F6;
+  --blue-bg: rgba(59, 130, 246, 0.1);
+  --blue-border: rgba(59, 130, 246, 0.3);
+
+  --amber-500: #F59E0B;
+  --amber-bg: rgba(245, 158, 11, 0.1);
+  --amber-border: rgba(245, 158, 11, 0.3);
+
+  --rose-500: #F43F5E;
+  --rose-bg: rgba(244, 63, 94, 0.1);
+  --rose-border: rgba(244, 63, 94, 0.3);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Consolas', monospace;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(16, 185, 129, 0.25);
 }
 
 * {
@@ -45,12 +58,29 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  line-height: 1.4;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-  min-height: 100vh;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: var(--radius-xs);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 button {
@@ -58,105 +88,192 @@ button {
   cursor: pointer;
   border: none;
   outline: none;
-  transition: all 150ms ease;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
 }
 
 button:focus-visible, input:focus-visible, select:focus-visible {
-  outline: 2px solid var(--color-secondary);
+  outline: 2px solid var(--emerald-500);
   outline-offset: 1px;
 }
 
 input, select {
   font-family: var(--font-sans);
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: 8px 12px;
-  font-size: 14px;
-}
-
-/* Animations */
-@keyframes pulseGlow {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  50% { transform: scale(1.05); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.8; }
-}
-
-.scanner-active-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-secondary);
-  box-shadow: 0 0 8px var(--color-secondary);
-  animation: pulseGlow 1.8s infinite ease-in-out;
-}
-
-/* Table styles */
-.pos-table {
-  width: 100%;
-  border-collapse: collapse;
   font-size: 13.5px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-.pos-table th {
-  background: #111B2E;
-  color: var(--color-text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  padding: 10px 12px;
-  text-align: left;
-  border-bottom: 2px solid var(--color-border);
+input:focus, select:focus {
+  border-color: var(--emerald-500);
+  box-shadow: 0 0 0 1px var(--emerald-500);
 }
 
-.pos-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--color-border);
-  vertical-align: middle;
+/* Header & Status Indicator */
+.status-dot-active {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--emerald-500);
+  box-shadow: 0 0 8px var(--emerald-500);
 }
 
-.pos-table tr:hover {
-  background: var(--color-surface-hover);
-}
-
-/* Badges */
-.badge {
+/* Shadcn-Style Subtle Pills */
+.pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
+  gap: 5px;
+  padding: 3px 8px;
   border-radius: var(--radius-sm);
   font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.pill-neutral {
+  background: var(--bg-surface-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.pill-emerald {
+  background: var(--emerald-bg);
+  color: #34D399;
+  border: 1px solid var(--emerald-border);
+}
+
+.pill-amber {
+  background: var(--amber-bg);
+  color: #FBBF24;
+  border: 1px solid var(--amber-border);
+}
+
+.pill-rose {
+  background: var(--rose-bg);
+  color: #FB7185;
+  border: 1px solid var(--rose-border);
+}
+
+.pill-blue {
+  background: var(--blue-bg);
+  color: #60A5FA;
+  border: 1px solid var(--blue-border);
+}
+
+/* Modern Clean POS Table */
+.modern-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.modern-table th {
+  background: #0D1322;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 10px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.modern-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.modern-table tbody tr:hover td {
+  background: var(--bg-surface-hover);
+}
+
+/* Segmented Control / Modern Tabs */
+.segmented-control {
+  display: flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 3px;
+}
+
+.segmented-control-item {
+  flex: 1;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.segmented-control-item.active {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Stepper Pill */
+.stepper-pill {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.stepper-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  border-radius: var(--radius-xs);
+}
+
+.stepper-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.stepper-val {
+  min-width: 28px;
+  text-align: center;
   font-weight: 600;
   font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
 }
 
-.badge-fefo {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ADE80;
-  border: 1px solid rgba(34, 197, 94, 0.4);
-}
-
-.badge-warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #FBBF24;
-  border: 1px solid rgba(245, 158, 11, 0.4);
-}
-
-.badge-danger {
-  background: rgba(220, 38, 38, 0.15);
-  color: #F87171;
-  border: 1px solid rgba(220, 38, 38, 0.4);
-}
-
-/* Modal Backdrop */
+/* Modal Overlay */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -165,31 +282,24 @@ input, select {
 }
 
 .modal-content {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  max-width: 600px;
+  max-width: 580px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
 }
 
-/* ============================================================================
-   THERMAL PRINT STYLESHEET (80mm & 58mm)
-   Activated on window.print()
-   ============================================================================ */
+/* Thermal Paper Print Preview */
 @media print {
-  /* Hide the entire app screen */
   body * {
     visibility: hidden;
   }
-
-  /* Show only the thermal receipt container */
   #printable-thermal-receipt, #printable-thermal-receipt * {
     visibility: visible;
   }
-
   #printable-thermal-receipt {
     position: absolute;
     left: 0;
@@ -199,8 +309,6 @@ input, select {
     background: #FFFFFF !important;
     color: #000000 !important;
   }
-
-  /* Standard 80mm thermal page rule */
   @page {
     size: 80mm auto;
     margin: 0mm;
@@ -213,7 +321,7 @@ input, select {
   font-family: var(--font-mono);
   padding: 16px;
   line-height: 1.25;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .thermal-paper-80mm {

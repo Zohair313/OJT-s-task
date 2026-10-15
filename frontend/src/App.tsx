@@ -28,7 +28,7 @@ interface CartLineItem {
 
 export function App() {
   // Domain Tenant Context
-  const [tenantId, setTenantId] = useState<string>('t-pharma-002'); // Default to Hospital Pharmacy to show FEFO & Clinical features
+  const [tenantId, setTenantId] = useState<string>('t-pharma-002');
   const [tenants, setTenants] = useState<any[]>([]);
   const isPharmacy = tenantId === 't-pharma-002';
 
@@ -38,19 +38,19 @@ export function App() {
   // Cart State
   const [cart, setCart] = useState<CartLineItem[]>([]);
   const [lastScanLatency, setLastScanLatency] = useState<number>(0);
-  const [statusMessage, setStatusMessage] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [statusNotification, setStatusNotification] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Clinical Tagging State
+  // Clinical Tagging State (Collapsible Accordion)
+  const [isClinicalOpen, setIsClinicalOpen] = useState<boolean>(true);
   const [patientMrn, setPatientMrn] = useState<string>('MRN-884920');
   const [patientName, setPatientName] = useState<string>('Jonathan Doe');
   const [doctorLicense, setDoctorLicense] = useState<string>('MD-LIC-44810');
   const [prescriptionNumber, setPrescriptionNumber] = useState<string>('RX-2026-9901');
-  const [showClinicalDrawer, setShowClinicalDrawer] = useState<boolean>(true);
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CREDIT_CARD' | 'UPI_QR'>('CASH');
@@ -74,11 +74,13 @@ export function App() {
       .then(res => res.json())
       .then(drawer => {
         if (!drawer) {
-          // Auto-open drawer if none active
           fetch('/api/v1/drawers/open', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenantId },
-            body: JSON.stringify({ openingFloat: 150.00, terminalId: isPharmacy ? 'PHARMA-COUNTER-01' : 'POS-COUNTER-01' })
+            body: JSON.stringify({
+              openingFloat: 150.00,
+              terminalId: isPharmacy ? 'PHARMA-COUNTER-01' : 'POS-COUNTER-01'
+            })
           })
             .then(res => res.json())
             .then(d => setActiveDrawer(d));
@@ -89,7 +91,7 @@ export function App() {
       .catch(() => {});
   }, [tenantId, isPharmacy]);
 
-  // 2. Fallback Debounced Search (250ms)
+  // 2. Debounced Live Search (250ms)
   useEffect(() => {
     if (!searchQuery || searchQuery.trim().length === 0) {
       setSearchResults([]);
@@ -99,16 +101,14 @@ export function App() {
     const timer = setTimeout(() => {
       fetch(`/api/v1/products?q=${encodeURIComponent(searchQuery)}&limit=8&tenantId=${tenantId}`)
         .then(res => res.json())
-        .then(data => {
-          setSearchResults(data.products || []);
-        })
+        .then(data => setSearchResults(data.products || []))
         .catch(() => {});
     }, 250);
 
     return () => clearTimeout(timer);
   }, [searchQuery, tenantId]);
 
-  // 3. Scan-to-Cart Ingestion Logic (< 150ms Ingestion Latency)
+  // 3. Scan-to-Cart Ingestion Logic (< 150ms Ingestion)
   const handleBarcodeScanned = async (barcode: string) => {
     const start = performance.now();
     try {
@@ -117,7 +117,7 @@ export function App() {
 
       if (!res.ok || !data.product) {
         playScannerBeep(false);
-        setStatusMessage({ text: `Barcode '${barcode}' not found!`, isError: true });
+        showNotification(`No item found for barcode '${barcode}'`, 'error');
         return;
       }
 
@@ -133,13 +133,13 @@ export function App() {
 
       if (!fefoData.allocations || fefoData.allocations.length === 0) {
         playScannerBeep(false);
-        setStatusMessage({ text: `Product '${product.name}' is completely out of stock!`, isError: true });
+        showNotification(`'${product.name}' is out of stock!`, 'error');
         return;
       }
 
       const alloc = fefoData.allocations[0];
 
-      // Add or increment in cart
+      // Add to Cart
       setCart(prev => {
         const existingIdx = prev.findIndex(item => item.batchId === alloc.batchId);
         if (existingIdx >= 0) {
@@ -172,21 +172,28 @@ export function App() {
 
       const latency = Math.round(performance.now() - start);
       setLastScanLatency(latency);
-      setStatusMessage({ text: `Added '${product.name}' via Scan (${latency}ms)`, isError: false });
+      showNotification(`Added ${product.name} (${latency}ms)`, 'success');
       setSearchQuery('');
       setSearchResults([]);
     } catch (err: any) {
       playScannerBeep(false);
-      setStatusMessage({ text: err.message, isError: true });
+      showNotification(err.message, 'error');
     }
   };
 
-  // Attach Hardware Scanner Listener
+  const showNotification = (text: string, type: 'success' | 'error' | 'info') => {
+    setStatusNotification({ text, type });
+    setTimeout(() => {
+      setStatusNotification(null);
+    }, 3500);
+  };
+
+  // Hardware Scanner Listener
   useScannerListener({
     onScan: handleBarcodeScanned
   });
 
-  // Keyboard Shortcuts (F1, F2, F4, F9, F12, Ctrl+K)
+  // Global Keyboard Shortcuts (F1, F2, F4, F9, F12, Ctrl+K, Esc)
   useEffect(() => {
     const handleGlobalKeys = (e: KeyboardEvent) => {
       if (e.key === 'F1') {
@@ -197,14 +204,14 @@ export function App() {
         searchInputRef.current?.focus();
       } else if (e.key === 'F4') {
         e.preventDefault();
-        setShowClinicalDrawer(prev => !prev);
+        setIsClinicalOpen(prev => !prev);
       } else if (e.key === 'F9') {
         e.preventDefault();
         setShowZReportModal(true);
       } else if (e.key === 'F12') {
         e.preventDefault();
         handleCheckoutSubmit();
-      } else if (e.ctrlKey && e.key === 'k') {
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setShowSimulatorModal(true);
       } else if (e.key === 'Escape') {
@@ -212,6 +219,7 @@ export function App() {
         setShowConcurrencyModal(false);
         setShowZReportModal(false);
         setShowShortcutsHelp(false);
+        setSearchResults([]);
       }
     };
 
@@ -233,7 +241,6 @@ export function App() {
   const tenderedNumeric = (!isNaN(parsedTender) && parsedTender > 0) ? parsedTender : cartGrandTotal;
   const changeDue = Math.max(0, tenderedNumeric - cartGrandTotal);
 
-  // Cart Line Mutators
   const updateQuantity = (cartId: string, newQty: number) => {
     if (newQty <= 0) {
       setCart(prev => prev.filter(item => item.cartId !== cartId));
@@ -246,18 +253,14 @@ export function App() {
     setCart(prev => prev.filter(item => item.cartId !== cartId));
   };
 
-  // Submit Checkout (ACID Transaction Pipeline)
+  // Submit Checkout (ACID Pipeline)
   const handleCheckoutSubmit = async () => {
     if (cart.length === 0) {
-      setStatusMessage({ text: 'Cart is empty. Scan an item first!', isError: true });
+      showNotification('Cart is empty. Scan an item first.', 'error');
       return;
     }
     if (!activeDrawer) {
-      setStatusMessage({ text: 'No active drawer session found.', isError: true });
-      return;
-    }
-    if (paymentMethod === 'CASH' && tenderedNumeric < cartGrandTotal) {
-      setStatusMessage({ text: `Tender insufficient! Total due is $${cartGrandTotal.toFixed(2)}`, isError: true });
+      showNotification('No active drawer session found.', 'error');
       return;
     }
 
@@ -294,491 +297,749 @@ export function App() {
         throw new Error(invoice.message || 'Checkout failed');
       }
 
-      // Success! Clear cart, set invoice for receipt printing
       setCart([]);
       setTenderedAmount('');
       setCompletedInvoice(invoice);
-      setStatusMessage({ text: `Invoice #${invoice.invoiceNumber} Committed Atomically!`, isError: false });
+      showNotification(`Invoice #${invoice.invoiceNumber} committed successfully.`, 'success');
     } catch (err: any) {
       playScannerBeep(false);
-      setStatusMessage({ text: `Checkout Aborted: ${err.message}`, isError: true });
+      showNotification(`Checkout Aborted: ${err.message}`, 'error');
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--color-bg)' }}>
-      {/* 1. TOP HEADER BAR */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
+      {/* 1. CLEAN TOP NAVBAR */}
       <header style={{
-        background: 'var(--color-surface)',
-        borderBottom: '1px solid var(--color-border)',
-        padding: '8px 16px',
+        height: '56px',
+        padding: '0 20px',
+        background: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        gap: '12px'
+        justifyContent: 'space-between',
+        gap: '16px',
+        zIndex: 20
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ fontWeight: 900, fontSize: '18px', color: '#F8FAFC', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: 'var(--color-secondary)' }}>⚡</span> ENTERPRISE POS
-          </div>
-
-          {/* Tenant Switcher */}
-          <select
-            value={tenantId}
-            onChange={(e) => {
-              setTenantId(e.target.value);
-              setCart([]);
-            }}
-            style={{ fontWeight: 600, fontSize: '13px', background: '#111B2E', borderColor: 'var(--color-border)' }}
-          >
-            {tenants.map(t => (
-              <option key={t.id} value={t.id}>
-                {t.domainType === 'HOSPITAL_PHARMACY' ? '🏥 ' : '🛒 '} {t.name}
-              </option>
-            ))}
-          </select>
-
-          {/* Mode Pill */}
-          <span className="badge" style={{
-            background: isPharmacy ? 'rgba(34, 197, 94, 0.2)' : 'rgba(3, 105, 161, 0.2)',
-            color: isPharmacy ? '#4ADE80' : '#38BDF8',
-            border: `1px solid ${isPharmacy ? '#22C55E' : '#0369A1'}`
-          }}>
-            {isPharmacy ? 'FEFO PHARMACY MODE' : 'RETAIL MART MODE'}
-          </span>
-        </div>
-
-        {/* Right Info & Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Scanner Pulse */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#111B2E', padding: '5px 10px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-            <div className="scanner-active-dot" />
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#4ADE80', fontFamily: 'var(--font-mono)' }}>
-              SCANNER READY
+        {/* Left: Brand & Branch Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'linear-gradient(135deg, #10B981, #059669)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+            }}>
+              <span style={{ fontSize: '15px', color: '#FFFFFF', fontWeight: 800 }}>+</span>
+            </div>
+            <span style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+              PulsePOS
             </span>
           </div>
 
-          {/* Simulator Button */}
+          <div style={{ height: '18px', width: '1px', background: 'var(--border-default)' }} />
+
+          {/* Clean Branch Selector */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <select
+              value={tenantId}
+              onChange={(e) => {
+                setTenantId(e.target.value);
+                setCart([]);
+              }}
+              style={{
+                appearance: 'none',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '5px 28px 5px 10px',
+                fontSize: '12.5px',
+                fontWeight: 500,
+                color: 'var(--text-primary)',
+                cursor: 'pointer'
+              }}
+            >
+              {tenants.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <span style={{ position: 'absolute', right: '10px', pointerEvents: 'none', fontSize: '10px', color: 'var(--text-muted)' }}>
+              ▼
+            </span>
+          </div>
+
+          {/* Subtle Status Pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="pill pill-neutral">
+              <span className="status-dot-active" />
+              <span>Scanner Ready</span>
+            </div>
+            <div className={`pill ${isPharmacy ? 'pill-emerald' : 'pill-blue'}`}>
+              <span>{isPharmacy ? 'FEFO Pharmacy' : 'Retail Mart'}</span>
+            </div>
+            {lastScanLatency > 0 && (
+              <div className="pill pill-neutral" style={{ fontFamily: 'var(--font-mono)' }}>
+                <span>{lastScanLatency}ms</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Unified Ghost Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={() => setShowSimulatorModal(true)}
-            style={{ background: 'var(--color-surface-elevated)', color: '#FCD34D', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 700 }}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-secondary)',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '12px',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-muted)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
           >
-            ⚡ Scan Simulator (Ctrl+K)
+            <span>⚡ Simulator</span>
+            <kbd style={{ fontSize: '10px', background: 'var(--bg-app)', padding: '1px 4px', borderRadius: '3px', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>⌘K</kbd>
           </button>
 
-          {/* Concurrency Test */}
           <button
             onClick={() => setShowConcurrencyModal(true)}
-            style={{ background: 'rgba(3, 105, 161, 0.3)', color: '#38BDF8', border: '1px solid #0369A1', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 700 }}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-secondary)',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '12px',
+              fontWeight: 500
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-muted)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
           >
-            🧪 Race Test (Sprint 3)
+            Race Test
           </button>
 
-          {/* Z-Report Shift */}
           <button
             onClick={() => setShowZReportModal(true)}
-            style={{ background: '#78350F', color: '#FDE68A', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 700 }}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-secondary)',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '12px',
+              fontWeight: 500
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-muted)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
           >
-            📊 Z-Report (F9)
+            Z-Report (F9)
           </button>
 
-          {/* Help */}
           <button
             onClick={() => setShowShortcutsHelp(true)}
-            style={{ background: 'transparent', color: '#94A3B8', padding: '6px 8px', fontSize: '14px' }}
+            style={{
+              width: '30px',
+              height: '30px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px'
+            }}
             title="Keyboard Shortcuts (F1)"
           >
-            ❓
+            ?
           </button>
         </div>
       </header>
 
-      {/* 2. SUB-HEADER: SCANNER INPUT & DEBOUNCED SEARCH */}
+      {/* 2. PROMINENT MODERN SEARCH BAR */}
       <div style={{
-        background: '#131D31',
-        padding: '8px 16px',
-        borderBottom: '1px solid var(--color-border)',
+        padding: '12px 20px',
+        background: 'var(--bg-app)',
+        borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
-        position: 'relative'
+        justifyContent: 'center'
       }}>
-        <div style={{ position: 'relative', flex: 1 }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: '980px' }}>
+          <span style={{
+            position: 'absolute',
+            left: '14px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            fontSize: '14px',
+            color: 'var(--text-muted)',
+            pointerEvents: 'none'
+          }}>
+            🔍
+          </span>
+
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="🔍 Scan Barcode with scanner or type Product Name / SKU to search (F2)..."
+            placeholder="Scan barcode with hardware reader or search by product name, SKU, or generic formula..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{
               width: '100%',
-              padding: '9px 12px 9px 36px',
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
+              height: '42px',
+              padding: '0 80px 0 40px',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-default)',
               borderRadius: 'var(--radius-md)',
               fontSize: '13.5px',
-              color: '#F8FAFC'
+              color: 'var(--text-primary)',
+              boxShadow: 'var(--shadow-sm)'
             }}
           />
-          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
-            ⚡
+
+          <span style={{
+            position: 'absolute',
+            right: '12px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            <kbd style={{ fontSize: '10px', background: 'var(--bg-app)', padding: '2px 5px', borderRadius: '4px', border: '1px solid var(--border-default)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              F2
+            </kbd>
           </span>
 
-          {/* Debounced Search Dropdown */}
+          {/* Search Results Dropdown */}
           {searchResults.length > 0 && (
             <div style={{
               position: 'absolute',
-              top: '100%',
+              top: '48px',
               left: 0,
               right: 0,
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-secondary)',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-default)',
               borderRadius: 'var(--radius-md)',
               boxShadow: 'var(--shadow-lg)',
-              zIndex: 50,
-              marginTop: '4px',
-              maxHeight: '320px',
-              overflowY: 'auto'
+              zIndex: 100,
+              overflow: 'hidden'
             }}>
               {searchResults.map((prod) => (
                 <div
                   key={prod.id}
                   onClick={() => handleBarcodeScanned(prod.barcode)}
                   style={{
-                    padding: '8px 12px',
-                    borderBottom: '1px solid var(--color-border)',
+                    padding: '10px 16px',
+                    borderBottom: '1px solid var(--border-subtle)',
                     cursor: 'pointer',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    transition: 'background 120ms ease'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-surface-hover)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-surface-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '13px' }}>{prod.name}</div>
-                    <div style={{ fontSize: '11px', color: '#94A3B8' }}>
-                      SKU: {prod.sku} | Barcode: {prod.barcode} {prod.genericName ? `| ${prod.genericName}` : ''}
+                    <div style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                      {prod.name}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      SKU: {prod.sku} • Barcode: {prod.barcode} {prod.genericName ? `• ${prod.genericName}` : ''}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 700, color: 'var(--color-secondary)', fontSize: '13px' }}>
+                    <div className="pill pill-emerald" style={{ fontFamily: 'var(--font-mono)' }}>
                       Stock: {prod.totalStock}
                     </div>
-                    <div style={{ fontSize: '10px', color: '#64748B' }}>Click or Scan to Add</div>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-
-        {/* Latency & Feedback Status */}
-        {lastScanLatency > 0 && (
-          <div className="badge" style={{ background: '#111B2E', color: '#4ADE80', border: '1px solid #166534', padding: '6px 10px' }}>
-            ⚡ Scan Latency: {lastScanLatency}ms (&lt; 150ms PASS)
-          </div>
-        )}
-
-        {statusMessage && (
-          <div style={{
-            fontSize: '12.5px',
-            fontWeight: 600,
-            color: statusMessage.isError ? '#F87171' : '#4ADE80',
-            background: statusMessage.isError ? 'rgba(220,38,38,0.15)' : 'rgba(34,197,94,0.15)',
-            padding: '6px 12px',
-            borderRadius: '4px',
-            border: `1px solid ${statusMessage.isError ? '#DC2626' : '#22C55E'}`
-          }}>
-            {statusMessage.text}
-          </div>
-        )}
       </div>
 
-      {/* 3. MAIN BODY: 65% CART / 35% COMMAND DECK */}
+      {/* 3. MAIN WORKSPACE (2-COLUMN SPLIT) */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* LEFT COLUMN: LIVE CART (65%) */}
-        <div style={{ flex: '1 1 65%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--color-border)', overflowY: 'auto' }}>
+        {/* LEFT PANE: CART AREA */}
+        <div style={{ flex: '1 1 65%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-app)' }}>
+          {/* Cart Header */}
           <div style={{
-            padding: '10px 16px',
-            background: '#111B2E',
-            borderBottom: '1px solid var(--color-border)',
+            padding: '12px 20px',
+            background: 'var(--bg-surface)',
+            borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            justifyContent: 'space-between'
           }}>
-            <div style={{ fontWeight: 700, fontSize: '13px', color: '#94A3B8' }}>
-              CURRENT CART: <span style={{ color: '#F8FAFC' }}>{totalItemCount} UNITS ({cart.length} LINE ITEMS)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Active Cart
+              </span>
+              <span className="pill pill-neutral">
+                {totalItemCount} items ({cart.length} lines)
+              </span>
             </div>
+
             {cart.length > 0 && (
               <button
                 onClick={() => setCart([])}
-                style={{ background: 'transparent', color: '#F87171', fontSize: '12px', fontWeight: 600 }}
+                style={{
+                  background: 'transparent',
+                  color: 'var(--rose-500)',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  padding: '4px 8px',
+                  borderRadius: 'var(--radius-xs)'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--rose-bg)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 Clear Cart (Esc)
               </button>
             )}
           </div>
 
-          {/* Cart Table */}
+          {/* Cart Content: Empty State vs Table */}
           {cart.length === 0 ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px', color: '#64748B' }}>
-              <span style={{ fontSize: '48px', marginBottom: '12px' }}>🛒</span>
-              <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#94A3B8' }}>Cashier Cart is Empty</h4>
-              <p style={{ fontSize: '13px', marginTop: '4px', textAlign: 'center', maxWidth: '380px' }}>
-                Scan an item using your physical handheld barcode scanner, press <strong>Ctrl+K</strong> to trigger the virtual scanner, or click any sample below:
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '40px 20px'
+            }}>
+              {/* Modern Minimal Vector Illustration */}
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '16px',
+                boxShadow: 'var(--shadow-sm)'
+              }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
+                  <circle cx="9" cy="21" r="1"></circle>
+                  <circle cx="20" cy="21" r="1"></circle>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+              </div>
+
+              <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                Cart is Empty
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '340px', lineHeight: 1.5, marginBottom: '20px' }}>
+                Scan a barcode using your handheld scanner, press <strong>⌘K</strong> to simulate a scan, or test with common items:
               </p>
-              {/* Quick sample chips */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '16px' }}>
+
+              {/* Refined Minimalist Test Chips */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button
                   onClick={() => handleBarcodeScanned('8901000000101')}
-                  style={{ background: 'var(--color-surface)', border: '1px solid var(--color-secondary)', color: '#4ADE80', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    color: 'var(--text-secondary)',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '12px',
+                    fontWeight: 500
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--emerald-500)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--border-default)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }}
                 >
-                  🏥 Scan Amoxicillin (FEFO Split)
+                  Amoxicillin 500mg (FEFO)
                 </button>
+
                 <button
                   onClick={() => handleBarcodeScanned('8901000000102')}
-                  style={{ background: 'var(--color-surface)', border: '1px solid var(--color-warning)', color: '#FBBF24', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    color: 'var(--text-secondary)',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '12px',
+                    fontWeight: 500
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--amber-500)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--border-default)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }}
                 >
-                  ⚠️ Scan Paracetamol (Near Expiry)
+                  Paracetamol 650mg (Near Expiry)
                 </button>
+
                 <button
                   onClick={() => handleBarcodeScanned('8901000000001')}
-                  style={{ background: 'var(--color-surface)', border: '1px solid var(--color-accent)', color: '#38BDF8', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    color: 'var(--text-secondary)',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '12px',
+                    fontWeight: 500
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--blue-500)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--border-default)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }}
                 >
-                  🥤 Scan Retail Beverage
+                  Retail Soda (FMCG)
                 </button>
               </div>
             </div>
           ) : (
-            <table className="pos-table">
-              <thead>
-                <tr>
-                  <th>Item Description</th>
-                  <th>Batch / Expiry (FEFO)</th>
-                  <th style={{ textAlign: 'center' }}>Qty</th>
-                  <th style={{ textAlign: 'right' }}>Price</th>
-                  <th style={{ textAlign: 'right' }}>Tax</th>
-                  <th style={{ textAlign: 'right' }}>Total</th>
-                  <th style={{ textAlign: 'center' }}>Act</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cart.map((item) => (
-                  <tr key={item.cartId}>
-                    <td>
-                      <div style={{ fontWeight: 700, color: '#F8FAFC' }}>{item.productName}</div>
-                      <div style={{ fontSize: '11px', color: '#94A3B8', fontFamily: 'var(--font-mono)' }}>
-                        SKU: {item.sku} | Barcode: {item.barcode}
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="badge badge-fefo">{item.batchNumber}</span>
-                        {item.isNearExpiry && (
-                          <span className="badge badge-warning">Near Expiry ({item.daysToExpiry}d)</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                        Exp: {item.expiryDate}
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#111B2E', padding: '2px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-                        <button
-                          onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
-                          style={{ background: 'transparent', color: '#94A3B8', width: '24px', height: '24px', fontWeight: 700 }}
-                        >
-                          -
-                        </button>
-                        <span style={{ width: '28px', textAlign: 'center', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
-                          style={{ background: 'transparent', color: '#4ADE80', width: '24px', height: '24px', fontWeight: 700 }}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                      ${item.unitPrice.toFixed(2)}
-                    </td>
-                    <td style={{ textAlign: 'right', color: '#94A3B8', fontSize: '12px' }}>
-                      {item.taxRate}%
-                    </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--color-secondary)', fontFamily: 'var(--font-mono)' }}>
-                      ${((item.quantity * item.unitPrice) * (1 + item.taxRate / 100)).toFixed(2)}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        onClick={() => removeCartItem(item.cartId)}
-                        style={{ background: 'transparent', color: '#EF4444', fontSize: '16px', padding: '4px 6px' }}
-                        title="Remove item"
-                      >
-                        ✕
-                      </button>
-                    </td>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <table className="modern-table">
+                <thead>
+                  <tr>
+                    <th>Item Description</th>
+                    <th>Batch & Expiry</th>
+                    <th style={{ textAlign: 'center' }}>Qty</th>
+                    <th style={{ textAlign: 'right' }}>Unit Price</th>
+                    <th style={{ textAlign: 'right' }}>Line Total</th>
+                    <th style={{ textAlign: 'center', width: '40px' }}></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {cart.map((item) => (
+                    <tr key={item.cartId}>
+                      <td>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.productName}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                          SKU: {item.sku} • {item.barcode}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span className="pill pill-emerald" style={{ fontFamily: 'var(--font-mono)' }}>
+                            {item.batchNumber}
+                          </span>
+                          {item.isNearExpiry && (
+                            <span className="pill pill-amber">
+                              Expiring in {item.daysToExpiry}d
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                          Exp: {item.expiryDate}
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="stepper-pill">
+                          <button
+                            className="stepper-btn"
+                            onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
+                          >
+                            -
+                          </button>
+                          <span className="stepper-val">{item.quantity}</span>
+                          <button
+                            className="stepper-btn"
+                            onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
+                            style={{ color: 'var(--emerald-500)' }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                        ${item.unitPrice.toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        ${((item.quantity * item.unitPrice) * (1 + item.taxRate / 100)).toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          onClick={() => removeCartItem(item.cartId)}
+                          style={{
+                            background: 'transparent',
+                            color: 'var(--text-muted)',
+                            fontSize: '14px',
+                            padding: '4px'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.color = 'var(--rose-500)'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                          title="Remove item"
+                        >
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Status Toast Notification */}
+          {statusNotification && (
+            <div style={{
+              padding: '8px 16px',
+              background: statusNotification.type === 'error' ? 'var(--rose-bg)' : 'var(--emerald-bg)',
+              borderTop: `1px solid ${statusNotification.type === 'error' ? 'var(--rose-border)' : 'var(--emerald-border)'}`,
+              color: statusNotification.type === 'error' ? '#FB7185' : '#34D399',
+              fontSize: '12.5px',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>{statusNotification.type === 'error' ? '⚠️' : '✓'}</span>
+              <span>{statusNotification.text}</span>
+            </div>
           )}
         </div>
 
-        {/* RIGHT COLUMN: COMMAND DECK & TOTALS (35%) */}
-        <div style={{ flex: '1 1 35%', background: '#111B2E', display: 'flex', flexDirection: 'column', padding: '16px', overflowY: 'auto' }}>
-          {/* Totals Box */}
-          <div style={{ background: 'var(--color-surface)', padding: '16px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
-              <span style={{ color: '#94A3B8' }}>Subtotal:</span>
-              <span style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>${cartSubtotal.toFixed(2)}</span>
+        {/* RIGHT PANE: CHECKOUT COMMAND DECK (35%) */}
+        <div style={{
+          flex: '1 1 35%',
+          background: 'var(--bg-surface)',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '20px',
+          overflowY: 'auto',
+          gap: '16px'
+        }}>
+          {/* Summary Card */}
+          <div style={{
+            background: 'var(--bg-app)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '16px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+              <span>Subtotal</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>${cartSubtotal.toFixed(2)}</span>
             </div>
+
             {cartDiscount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px', color: '#F87171' }}>
-                <span>Discounts:</span>
-                <span style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>-${cartDiscount.toFixed(2)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--rose-500)', marginBottom: '8px' }}>
+                <span>Discounts</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>-${cartDiscount.toFixed(2)}</span>
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
-              <span style={{ color: '#94A3B8' }}>Tax / VAT:</span>
-              <span style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>${cartTax.toFixed(2)}</span>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              <span>Tax / VAT (5%)</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>${cartTax.toFixed(2)}</span>
             </div>
-            <div style={{ borderTop: '2px solid var(--color-border)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ fontSize: '14px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase' }}>Grand Total:</span>
-              <span style={{ fontSize: '30px', fontWeight: 900, color: '#4ADE80', fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>
+
+            <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '12px 0' }} />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+                Total Due
+              </span>
+              <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>
                 ${cartGrandTotal.toFixed(2)}
               </span>
             </div>
           </div>
 
-          {/* Clinical Patient & Doctor Tagging (Pharmacy Mode) */}
+          {/* Clinical Prescription Link Accordion (Hospital Pharmacy Mode) */}
           {isPharmacy && (
-            <div style={{ background: 'var(--color-surface)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.4)', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 800, color: '#4ADE80', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  🏥 Clinical Prescription Link (F4)
+            <div style={{
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-lg)',
+              overflow: 'hidden'
+            }}>
+              <div
+                onClick={() => setIsClinicalOpen(!isClinicalOpen)}
+                style={{
+                  padding: '12px 14px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Prescription Link
+                  </span>
+                  <span className="pill pill-emerald" style={{ fontSize: '10px' }}>F4</span>
+                </div>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', transform: isClinicalOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease' }}>
+                  ▼
                 </span>
-                <button
-                  onClick={() => setShowClinicalDrawer(!showClinicalDrawer)}
-                  style={{ background: 'transparent', color: '#94A3B8', fontSize: '11px' }}
-                >
-                  {showClinicalDrawer ? 'Hide' : 'Edit'}
-                </button>
               </div>
 
-              {showClinicalDrawer ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              {isClinicalOpen && (
+                <div style={{ padding: '0 14px 14px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label style={{ fontSize: '10px', color: '#94A3B8', display: 'block', marginBottom: '2px' }}>Patient MRN</label>
+                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Patient MRN</label>
                     <input
                       type="text"
                       value={patientMrn}
                       onChange={e => setPatientMrn(e.target.value)}
-                      style={{ width: '100%', fontSize: '12px', padding: '5px 8px' }}
+                      style={{ width: '100%', padding: '6px 10px', fontSize: '12px' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '10px', color: '#94A3B8', display: 'block', marginBottom: '2px' }}>Patient Name</label>
+                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Patient Name</label>
                     <input
                       type="text"
                       value={patientName}
                       onChange={e => setPatientName(e.target.value)}
-                      style={{ width: '100%', fontSize: '12px', padding: '5px 8px' }}
+                      style={{ width: '100%', padding: '6px 10px', fontSize: '12px' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '10px', color: '#94A3B8', display: 'block', marginBottom: '2px' }}>Doctor License</label>
+                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Doctor License</label>
                     <input
                       type="text"
                       value={doctorLicense}
                       onChange={e => setDoctorLicense(e.target.value)}
-                      style={{ width: '100%', fontSize: '12px', padding: '5px 8px' }}
+                      style={{ width: '100%', padding: '6px 10px', fontSize: '12px' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '10px', color: '#94A3B8', display: 'block', marginBottom: '2px' }}>Rx Number</label>
+                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Rx Number</label>
                     <input
                       type="text"
                       value={prescriptionNumber}
                       onChange={e => setPrescriptionNumber(e.target.value)}
-                      style={{ width: '100%', fontSize: '12px', padding: '5px 8px' }}
+                      style={{ width: '100%', padding: '6px 10px', fontSize: '12px' }}
                     />
                   </div>
-                </div>
-              ) : (
-                <div style={{ fontSize: '11px', color: '#CBD5E1' }}>
-                  Patient: {patientName} ({patientMrn}) | Dr: {doctorLicense}
                 </div>
               )}
             </div>
           )}
 
-          {/* Payment Method Selector */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+          {/* Payment Method Segmented Control */}
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
               Payment Method
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-              {(['CASH', 'CREDIT_CARD', 'UPI_QR'] as const).map(method => (
-                <button
-                  key={method}
-                  onClick={() => setPaymentMethod(method)}
-                  style={{
-                    padding: '8px 4px',
-                    borderRadius: 'var(--radius-md)',
-                    fontWeight: 700,
-                    fontSize: '11.5px',
-                    background: paymentMethod === method ? 'var(--color-accent)' : 'var(--color-surface)',
-                    color: paymentMethod === method ? '#FFF' : '#94A3B8',
-                    border: `1px solid ${paymentMethod === method ? '#38BDF8' : 'var(--color-border)'}`
-                  }}
-                >
-                  {method === 'CASH' ? '💵 Cash' : method === 'CREDIT_CARD' ? '💳 Card' : '📱 UPI / QR'}
-                </button>
-              ))}
+            <div className="segmented-control">
+              <button
+                className={`segmented-control-item ${paymentMethod === 'CASH' ? 'active' : ''}`}
+                onClick={() => setPaymentMethod('CASH')}
+              >
+                💵 Cash
+              </button>
+              <button
+                className={`segmented-control-item ${paymentMethod === 'CREDIT_CARD' ? 'active' : ''}`}
+                onClick={() => setPaymentMethod('CREDIT_CARD')}
+              >
+                💳 Card
+              </button>
+              <button
+                className={`segmented-control-item ${paymentMethod === 'UPI_QR' ? 'active' : ''}`}
+                onClick={() => setPaymentMethod('UPI_QR')}
+              >
+                📱 UPI / QR
+              </button>
             </div>
           </div>
 
-          {/* Cash Tender & Quick Buttons */}
+          {/* Cash Tendered & Quick Bills */}
           {paymentMethod === 'CASH' && (
-            <div style={{ marginBottom: '14px' }}>
+            <div style={{
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '14px'
+            }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>
-                  Cash Tendered ($)
-                </label>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>CASH TENDERED</span>
                 {changeDue > 0 && (
-                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#4ADE80' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--emerald-500)', fontFamily: 'var(--font-mono)' }}>
                     Change: ${changeDue.toFixed(2)}
                   </span>
                 )}
               </div>
+
               <input
                 type="number"
                 min="0"
                 step="any"
                 autoComplete="off"
-                placeholder={`e.g. ${Math.ceil(cartGrandTotal)}`}
+                placeholder={`$${cartGrandTotal.toFixed(2)} (Exact)`}
                 value={tenderedAmount}
                 onChange={e => setTenderedAmount(e.target.value)}
-                style={{ width: '100%', fontSize: '16px', fontWeight: 800, fontFamily: 'var(--font-mono)', marginBottom: '8px' }}
+                style={{
+                  width: '100%',
+                  fontSize: '16px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-mono)',
+                  marginBottom: '10px'
+                }}
               />
 
-              {/* Quick Bill Chips */}
+              {/* Clean Quick Chips */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {[20, 50, 100].map(amt => (
                   <button
                     key={amt}
                     onClick={() => setTenderedAmount(amt.toString())}
-                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: '#CBD5E1', padding: '6px 0', borderRadius: '4px', fontSize: '12px', fontWeight: 700 }}
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-secondary)',
+                      padding: '5px 0',
+                      borderRadius: 'var(--radius-xs)',
+                      fontSize: '11.5px',
+                      fontWeight: 600
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-muted)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
                   >
                     ${amt}
                   </button>
                 ))}
                 <button
                   onClick={() => setTenderedAmount(cartGrandTotal.toFixed(2))}
-                  style={{ background: 'var(--color-surface)', border: '1px solid var(--color-secondary)', color: '#4ADE80', padding: '6px 0', borderRadius: '4px', fontSize: '11.5px', fontWeight: 700 }}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--emerald-border)',
+                    color: 'var(--emerald-500)',
+                    padding: '5px 0',
+                    borderRadius: 'var(--radius-xs)',
+                    fontSize: '11.5px',
+                    fontWeight: 600
+                  }}
                 >
                   Exact
                 </button>
@@ -786,38 +1047,49 @@ export function App() {
             </div>
           )}
 
-          {/* Complete Checkout Button */}
+          {/* Large Primary Action Button */}
           <button
             onClick={handleCheckoutSubmit}
             disabled={cart.length === 0}
             style={{
               marginTop: 'auto',
               width: '100%',
-              background: cart.length > 0 ? 'var(--color-primary)' : '#334155',
-              color: '#FFFFFF',
-              padding: '16px',
+              background: cart.length > 0 ? 'var(--emerald-600)' : 'var(--bg-surface-elevated)',
+              color: cart.length > 0 ? '#FFFFFF' : 'var(--text-muted)',
+              padding: '14px',
               borderRadius: 'var(--radius-md)',
-              fontWeight: 900,
-              fontSize: '15px',
-              letterSpacing: '0.04em',
+              fontWeight: 700,
+              fontSize: '14px',
+              letterSpacing: '0.02em',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              gap: '2px',
-              boxShadow: cart.length > 0 ? '0 4px 14px rgba(21, 128, 61, 0.4)' : 'none'
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: cart.length > 0 ? 'var(--shadow-glow)' : 'none',
+              cursor: cart.length > 0 ? 'pointer' : 'not-allowed'
+            }}
+            onMouseEnter={e => {
+              if (cart.length > 0) e.currentTarget.style.background = 'var(--emerald-500)';
+            }}
+            onMouseLeave={e => {
+              if (cart.length > 0) e.currentTarget.style.background = 'var(--emerald-600)';
             }}
           >
-            <span>COMPLETE CHECKOUT (F12)</span>
-            <span style={{ fontSize: '11px', fontWeight: 500, opacity: 0.85 }}>
-              🖨️ Atomic ACID Commit & Thermal Print
-            </span>
+            <span>COMPLETE CHECKOUT</span>
+            <kbd style={{
+              background: 'rgba(0, 0, 0, 0.25)',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)'
+            }}>
+              F12
+            </kbd>
           </button>
         </div>
       </div>
 
-      {/* 4. MODALS & OVERLAYS */}
-
-      {/* A. Thermal Receipt Modal */}
+      {/* 4. MODALS & PREVIEWS */}
       {completedInvoice && (
         <ThermalReceipt
           invoice={completedInvoice}
@@ -833,7 +1105,6 @@ export function App() {
         />
       )}
 
-      {/* B. Z-Report Cash Reconciliation Modal */}
       {showZReportModal && activeDrawer && (
         <ZReportModal
           drawer={activeDrawer}
@@ -841,12 +1112,11 @@ export function App() {
           onClose={() => setShowZReportModal(false)}
           onZReportGenerated={(zReport) => {
             setShowZReportModal(false);
-            setStatusMessage({ text: `Z-Report ${zReport.reportCode} Generated! Variance: $${zReport.cashVariance}`, isError: false });
+            showNotification(`Z-Report ${zReport.reportCode} generated. Variance: $${zReport.cashVariance}`, 'success');
           }}
         />
       )}
 
-      {/* C. Concurrency Race Load Test Modal */}
       {showConcurrencyModal && (
         <ConcurrencyTestModal
           tenantId={tenantId}
@@ -854,7 +1124,6 @@ export function App() {
         />
       )}
 
-      {/* D. Hardware Scanner Simulator Modal */}
       {showSimulatorModal && (
         <ScannerSimulatorModal
           onScanBarcode={handleBarcodeScanned}
@@ -862,28 +1131,27 @@ export function App() {
         />
       )}
 
-      {/* E. Keyboard Shortcuts Help Modal */}
       {showShortcutsHelp && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '440px', padding: '20px' }}>
+          <div className="modal-content" style={{ maxWidth: '420px', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 800 }}>⌨️ Cashier Keyboard Shortcuts</h3>
-              <button onClick={() => setShowShortcutsHelp(false)} style={{ background: 'transparent', color: '#94A3B8', fontSize: '18px' }}>✕</button>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Keyboard Shortcuts</h3>
+              <button onClick={() => setShowShortcutsHelp(false)} style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '16px' }}>✕</button>
             </div>
-            <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', fontSize: '12.5px', borderCollapse: 'collapse' }}>
               <tbody>
                 {[
-                  ['F1', 'Toggle Keyboard Shortcut Help'],
-                  ['F2', 'Focus Search / Barcode Input'],
-                  ['F4', 'Toggle Clinical Prescription Tagging'],
-                  ['F9', 'Open Cash Drop & Z-Report Modal'],
-                  ['F12', 'Complete Checkout & Commit Transaction'],
-                  ['Ctrl + K', 'Open Barcode Scanner Simulator'],
-                  ['Esc', 'Clear Cart or Close Active Modal']
+                  ['F1', 'Shortcut Reference'],
+                  ['F2', 'Focus Product Search'],
+                  ['F4', 'Toggle Prescription Drawer'],
+                  ['F9', 'Cash Drawer / Z-Report'],
+                  ['F12', 'Complete Checkout Transaction'],
+                  ['⌘K / Ctrl+K', 'Barcode Scanner Simulator'],
+                  ['Esc', 'Clear Cart or Dismiss Dialog']
                 ].map(([key, desc]) => (
-                  <tr key={key} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td style={{ padding: '8px 0', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--color-secondary)' }}>{key}</td>
-                    <td style={{ padding: '8px 0', color: '#CBD5E1' }}>{desc}</td>
+                  <tr key={key} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '8px 0', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--emerald-500)' }}>{key}</td>
+                    <td style={{ padding: '8px 0', color: 'var(--text-secondary)' }}>{desc}</td>
                   </tr>
                 ))}
               </tbody>
