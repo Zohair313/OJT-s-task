@@ -1,0 +1,40 @@
+{
+  "name": "pos-inventory-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Enterprise POS & Inventory SaaS Backend (Node.js/TypeScript/PostgreSQL)",
+  "main": "src/server.ts",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "seed": "tsx src/db/seed.ts",
+    "test:concurrency": "tsx test/concurrency-race.ts"
+  },
+  "keywords": [
+    "pos",
+    "inventory",
+    "acid",
+    "fefo",
+    "concurrency",
+    "postgresql"
+  ],
+  "author": "OJT Full-Stack Engineering Track",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.5.5",
+    "@types/pg": "^8.11.10",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}

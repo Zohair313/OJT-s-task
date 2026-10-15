@@ -1,0 +1,24 @@
+{
+  "name": "enterprise-pos-inventory-saas",
+  "version": "1.0.0",
+  "description": "Enterprise POS & Inventory Management SaaS (Retail Supermarkets & Hospital Pharmacies)",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "node scripts/dev.js",
+    "test:concurrency": "npm --prefix backend run test:concurrency",
+    "seed": "npm --prefix backend run seed"
+  },
+  "keywords": [
+    "pos",
+    "inventory",
+    "react",
+    "node",
+    "postgresql",
+    "fefo",
+    "acid"
+  ],
+  "author": "OJT Full-Stack Engineering Track",
+  "license": "ISC"
+}

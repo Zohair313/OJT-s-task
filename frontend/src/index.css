@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Nunito+Sans:wght@300;400;600;700;800&family=Rubik:wght@400;500;600;700&display=swap');
+
+:root {
+  /* UI-UX Pro Max Design System Tokens (Density 8/10) */
+  --color-primary: #15803D;
+  --color-primary-hover: #166534;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #22C55E;
+  --color-on-secondary: #0F172A;
+  --color-accent: #0369A1;
+  --color-accent-hover: #075985;
+  --color-on-accent: #FFFFFF;
+
+  --color-bg: #0F172A;
+  --color-surface: #1E293B;
+  --color-surface-hover: #273549;
+  --color-surface-elevated: #334155;
+  --color-border: #334155;
+  --color-border-subtle: #1E293B;
+  --color-text: #F8FAFC;
+  --color-text-muted: #94A3B8;
+
+  --color-destructive: #DC2626;
+  --color-warning: #F59E0B;
+  --color-warning-subtle: #78350F;
+  --color-success: #10B981;
+
+  --font-sans: 'Nunito Sans', 'Rubik', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 150ms ease;
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 1px;
+}
+
+input, select {
+  font-family: var(--font-sans);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+/* Animations */
+@keyframes pulseGlow {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.scanner-active-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-secondary);
+  box-shadow: 0 0 8px var(--color-secondary);
+  animation: pulseGlow 1.8s infinite ease-in-out;
+}
+
+/* Table styles */
+.pos-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.pos-table th {
+  background: #111B2E;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.pos-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.pos-table tr:hover {
+  background: var(--color-surface-hover);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.badge-fefo {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ADE80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-danger {
+  background: rgba(220, 38, 38, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+}
+
+/* Modal Backdrop */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================================================
+   THERMAL PRINT STYLESHEET (80mm & 58mm)
+   Activated on window.print()
+   ============================================================================ */
+@media print {
+  /* Hide the entire app screen */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the thermal receipt container */
+  #printable-thermal-receipt, #printable-thermal-receipt * {
+    visibility: visible;
+  }
+
+  #printable-thermal-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    padding: 0;
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+
+  /* Standard 80mm thermal page rule */
+  @page {
+    size: 80mm auto;
+    margin: 0mm;
+  }
+}
+
+.thermal-paper {
+  background: #FFFFFF;
+  color: #000000;
+  font-family: var(--font-mono);
+  padding: 16px;
+  line-height: 1.25;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.thermal-paper-80mm {
+  width: 80mm;
+  max-width: 80mm;
+  font-size: 11px;
+}
+
+.thermal-paper-58mm {
+  width: 58mm;
+  max-width: 58mm;
+  font-size: 9.5px;
+}
+
+.thermal-dashed {
+  border-top: 1px dashed #000000;
+  margin: 6px 0;
+}
