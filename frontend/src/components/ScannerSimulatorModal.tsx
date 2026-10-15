@@ -1,4 +1,5 @@
 import React from 'react';
+import { BarcodeSvg } from './BarcodeSvg';
 
 interface ScannerSimulatorModalProps {
   onScanBarcode: (barcode: string) => void;
@@ -85,12 +86,15 @@ export const ScannerSimulatorModal: React.FC<ScannerSimulatorModalProps> = ({ on
                 <div style={{ fontWeight: 700, fontSize: '14px', color: '#F8FAFC' }}>{item.name}</div>
                 <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>{item.desc}</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <span className="badge" style={{ background: item.type === 'Pharma' ? 'rgba(34,197,94,0.2)' : 'rgba(3,105,161,0.2)', color: item.type === 'Pharma' ? '#4ADE80' : '#38BDF8', marginBottom: '4px' }}>
-                  {item.type}
-                </span>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600, color: '#FCD34D' }}>
-                  {item.barcode}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <BarcodeSvg value={item.barcode} width={130} height={32} showText={false} />
+                <div style={{ textAlign: 'right', minWidth: '90px' }}>
+                  <span className="badge" style={{ background: item.type === 'Pharma' ? 'rgba(34,197,94,0.2)' : 'rgba(3,105,161,0.2)', color: item.type === 'Pharma' ? '#4ADE80' : '#38BDF8', marginBottom: '2px' }}>
+                    {item.type}
+                  </span>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700, color: '#FCD34D' }}>
+                    {item.barcode}
+                  </div>
                 </div>
               </div>
             </div>

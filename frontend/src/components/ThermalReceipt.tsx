@@ -1,4 +1,5 @@
 import React from 'react';
+import { BarcodeSvg } from './BarcodeSvg';
 
 interface InvoiceItem {
   id: string;
@@ -222,15 +223,8 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 
           {/* Footer Barcode Representation */}
           <div style={{ textAlign: 'center', margin: '8px 0 4px 0' }}>
-            <div style={{
-              fontFamily: 'monospace',
-              letterSpacing: '3px',
-              fontSize: '11px',
-              fontWeight: 700
-            }}>
-              *|||| ||| ||||||| |||||| ||*
-            </div>
-            <div style={{ fontSize: '8px', color: '#555', marginTop: '2px' }}>
+            <BarcodeSvg value={invoice.invoiceNumber.replace(/[^0-9]/g, '').slice(-12) || '890100000001'} width={is58mm ? 160 : 200} height={38} />
+            <div style={{ fontSize: '8px', color: '#555', marginTop: '4px' }}>
               Thank you for your visit! Goods once sold are returnable within 7 days.
             </div>
           </div>
