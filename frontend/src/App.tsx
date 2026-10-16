@@ -1,4 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
+import {
+  Activity,
+  AlertTriangle,
+  Banknote,
+  Building2,
+  ChevronDown,
+  CreditCard,
+  FileText,
+  HelpCircle,
+  Minus,
+  Pill,
+  Plus,
+  QrCode,
+  Search,
+  ShoppingCart,
+  Trash2,
+  X,
+  Zap
+} from 'lucide-react';
 import { useScannerListener } from './hooks/useScannerListener';
 import { ThermalReceipt } from './components/ThermalReceipt';
 import { ZReportModal } from './components/ZReportModal';
@@ -349,68 +368,47 @@ export function App() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
-      {/* 1. TOP NAVBAR (Clean, Subtle, Zero Neon Clutter) */}
-      <header className="pos-header">
-        {/* Left: Brand, Nav Switcher, Branch Selector, Minimal Status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: 'var(--radius-xs)',
-              background: 'var(--emerald-600)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontWeight: 800,
-              fontSize: '13px'
-            }}>
-              +
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 select-none">
+      {/* 1. TOP NAVBAR (Single-line clean bar, zero neon clutter) */}
+      <header className="h-14 border-b border-slate-800 bg-slate-900 px-4 flex items-center justify-between shrink-0 z-20">
+        {/* Left: Brand, Nav Switcher, Branch Selector, Subtle Status */}
+        <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded bg-emerald-600 flex items-center justify-center text-white font-bold shadow-sm">
+              <Activity className="w-4 h-4" />
             </div>
-            <span style={{ fontWeight: 700, fontSize: '14px', letterSpacing: '-0.02em', color: 'var(--slate-50)' }}>
-              PulsePOS
-            </span>
+            <span className="font-bold text-sm tracking-tight text-slate-100">PulsePOS</span>
           </div>
 
           {/* Navigation Tabs: POS vs Admin */}
-          <div className="nav-tabs">
+          <div className="flex items-center bg-slate-950 border border-slate-800 rounded-md p-0.5">
             <button
               onClick={() => navigateTo('pos')}
-              className="nav-tab active"
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded bg-slate-800 text-white shadow-sm"
             >
-              <span>🛒</span> POS Counter
+              <ShoppingCart className="w-3.5 h-3.5 text-emerald-400" />
+              POS Counter
             </button>
             <button
               onClick={() => navigateTo('admin')}
-              className="nav-tab"
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded text-slate-400 hover:text-slate-200 transition"
             >
-              <span>⚙️</span> Product Admin
+              <Building2 className="w-3.5 h-3.5" />
+              Product Admin
             </button>
           </div>
 
-          <div style={{ height: '16px', width: '1px', background: 'var(--border-default)' }} />
+          <div className="h-4 w-px bg-slate-800" />
 
           {/* Clean Branch Selector */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <div className="relative flex items-center">
             <select
               value={tenantId}
               onChange={(e) => {
                 setTenantId(e.target.value);
                 setCart([]);
               }}
-              style={{
-                appearance: 'none',
-                background: 'var(--slate-950)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '4px 26px 4px 10px',
-                fontSize: '12px',
-                fontWeight: 500,
-                color: 'var(--slate-300)',
-                cursor: 'pointer'
-              }}
+              className="appearance-none bg-slate-950 border border-slate-800 rounded-md px-3 py-1.5 pr-7 text-xs font-medium text-slate-300 hover:border-slate-700 cursor-pointer focus:outline-none focus:border-emerald-500 transition"
             >
               {tenants.map(t => (
                 <option key={t.id} value={t.id}>
@@ -418,77 +416,69 @@ export function App() {
                 </option>
               ))}
             </select>
-            <span style={{ position: 'absolute', right: '8px', pointerEvents: 'none', fontSize: '9px', color: 'var(--slate-500)' }}>
-              ▼
-            </span>
+            <ChevronDown className="w-3 h-3 text-slate-500 absolute right-2 pointer-events-none" />
           </div>
 
-          {/* Subtle Compact Status Indicator (No Neon Rainbow Badges) */}
-          <div className="status-indicator">
-            <span className="status-dot-emerald" />
-            <span>Ready</span>
+          {/* Subtle Status Pills (No neon/loud badges) */}
+          <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-slate-800 bg-slate-950 text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Scanner Ready</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-emerald-900/40 bg-emerald-950/30 text-emerald-400 font-medium">
+              <Pill className="w-3 h-3" />
+              <span>{isPharmacy ? 'FEFO Pharmacy' : 'Retail Mart'}</span>
+            </div>
             {lastScanLatency > 0 && (
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--slate-500)' }}>
-                • {lastScanLatency}ms
-              </span>
+              <span className="font-mono text-slate-500 text-[11px]">• {lastScanLatency}ms</span>
             )}
           </div>
         </div>
 
-        {/* Right: Clean Ghost Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Right: Quick Action Links with Clean Ghost Buttons */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSimulatorModal(true)}
-            className="action-btn-ghost"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-700 text-slate-300 rounded-md transition"
           >
-            <span>⚡ Simulator</span>
-            <kbd className="kbd-badge">⌘K</kbd>
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>Simulator</span>
+            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-950 border border-slate-700 rounded text-slate-400">⌘K</kbd>
           </button>
 
           <button
             onClick={() => setShowConcurrencyModal(true)}
-            className="action-btn-ghost"
+            className="px-2.5 py-1.5 text-xs font-medium border border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-700 text-slate-300 rounded-md transition"
           >
             Race Test
           </button>
 
           <button
             onClick={() => setShowZReportModal(true)}
-            className="action-btn-ghost"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-700 text-slate-300 rounded-md transition"
           >
-            Z-Report (F9)
+            <FileText className="w-3.5 h-3.5 text-blue-400" />
+            <span>Z-Report (F9)</span>
           </button>
 
           <button
             onClick={() => setShowShortcutsHelp(true)}
-            className="action-btn-ghost"
-            style={{ padding: '5px 8px' }}
+            className="p-1.5 border border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 rounded-md transition"
             title="Shortcuts Reference (F1)"
           >
-            ?
+            <HelpCircle className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      {/* 2. CLEAN WIDE SEARCH BAR */}
-      <div className="search-container">
-        <div className="search-box">
-          <span style={{
-            position: 'absolute',
-            left: '12px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontSize: '13px',
-            color: 'var(--slate-500)',
-            pointerEvents: 'none'
-          }}>
-            🔍
-          </span>
+      {/* 2. PROMINENT WIDE SEARCH BAR */}
+      <div className="px-6 py-2.5 bg-slate-950 border-b border-slate-800 flex justify-center shrink-0">
+        <div className="relative w-full max-w-4xl">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
 
           <input
             ref={searchInputRef}
             type="text"
-            className="search-input-field"
             placeholder="Scan barcode with handheld reader or search product by name, SKU, generic..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
@@ -512,52 +502,34 @@ export function App() {
                 }
               }
             }}
+            className="w-full h-10 pl-10 pr-16 bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition shadow-sm"
           />
 
-          <div className="search-shortcut-badge">
-            <kbd className="kbd-badge">F2</kbd>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-800 border border-slate-700 rounded text-slate-400">
+              F2
+            </kbd>
           </div>
 
           {/* Search Dropdown */}
           {searchResults.length > 0 && (
-            <div style={{
-              position: 'absolute',
-              top: '46px',
-              left: 0,
-              right: 0,
-              background: 'var(--slate-900)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: 'var(--shadow-lg)',
-              zIndex: 100,
-              overflow: 'hidden'
-            }}>
+            <div className="absolute top-12 left-0 right-0 bg-slate-900 border border-slate-800 rounded-lg shadow-xl z-50 overflow-hidden divide-y divide-slate-800/80">
               {searchResults.map((prod) => (
                 <div
                   key={prod.id}
                   onClick={() => handleBarcodeScanned(prod.barcode)}
-                  style={{
-                    padding: '9px 14px',
-                    borderBottom: '1px solid rgba(30, 41, 59, 0.6)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    transition: 'background 100ms ease'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--slate-850)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-850 cursor-pointer transition"
                 >
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--slate-100)' }}>
+                    <div className="text-sm font-semibold text-slate-100">
                       {prod.name}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--slate-400)', marginTop: '2px' }}>
+                    <div className="text-xs text-slate-400 mt-0.5">
                       SKU: {prod.sku} • Barcode: {prod.barcode} {prod.genericName ? `• ${prod.genericName}` : ''}
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span className="pill pill-emerald" style={{ fontFamily: 'var(--font-mono)' }}>
+                  <div className="text-right">
+                    <span className="inline-flex px-2 py-0.5 text-xs font-mono font-medium rounded bg-emerald-950/60 text-emerald-400 border border-emerald-900/60">
                       Stock: {prod.totalStock}
                     </span>
                   </div>
@@ -569,23 +541,14 @@ export function App() {
       </div>
 
       {/* 3. MAIN WORKSPACE (2-COLUMN SPLIT) */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div className="flex flex-1 overflow-hidden">
         {/* LEFT PANE: CART AREA */}
-        <div style={{ flex: '1 1 65%', display: 'flex', flexDirection: 'column', background: 'var(--slate-950)', overflow: 'hidden' }}>
+        <div className="flex-1 flex flex-col bg-slate-950 overflow-hidden border-r border-slate-800">
           {/* Cart Header */}
-          <div style={{
-            padding: '10px 18px',
-            background: 'var(--slate-900)',
-            borderBottom: '1px solid var(--border-default)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--slate-100)' }}>
-                Active Cart
-              </span>
-              <span className="pill pill-neutral">
+          <div className="h-11 px-5 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider">Active Cart</span>
+              <span className="px-2 py-0.5 text-xs rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-mono">
                 {totalItemCount} items ({cart.length} lines)
               </span>
             </div>
@@ -593,156 +556,121 @@ export function App() {
             {cart.length > 0 && (
               <button
                 onClick={() => setCart([])}
-                style={{
-                  background: 'transparent',
-                  color: 'var(--rose-500)',
-                  fontSize: '11.5px',
-                  fontWeight: 500,
-                  padding: '3px 8px',
-                  borderRadius: 'var(--radius-xs)'
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--rose-bg)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                className="flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300 font-medium px-2 py-1 rounded hover:bg-rose-950/30 transition"
               >
-                Clear Cart (Esc)
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear Cart (Esc)</span>
               </button>
             )}
           </div>
 
           {/* Cart Content: Empty State vs Table */}
           {cart.length === 0 ? (
-            <div style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '40px 20px'
-            }}>
-              <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '50%',
-                background: 'var(--slate-900)',
-                border: '1px solid var(--border-default)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '14px',
-                boxShadow: 'var(--shadow-sm)'
-              }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--slate-500)' }}>
-                  <circle cx="9" cy="21" r="1"></circle>
-                  <circle cx="20" cy="21" r="1"></circle>
-                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                </svg>
+            <div className="flex-1 flex flex-col items-center justify-center p-8">
+              <div className="w-14 h-14 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-3.5 shadow-sm text-slate-500">
+                <ShoppingCart className="w-6 h-6" />
               </div>
 
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--slate-200)', marginBottom: '4px' }}>
+              <div className="text-sm font-semibold text-slate-200 mb-1">
                 Cart is Empty
               </div>
-              <p style={{ fontSize: '12.5px', color: 'var(--slate-500)', textAlign: 'center', maxWidth: '340px', lineHeight: 1.4, marginBottom: '18px' }}>
-                Scan a barcode using your handheld scanner, press <kbd className="kbd-badge">⌘K</kbd> to simulate, or click a sample item:
+              <p className="text-xs text-slate-400 text-center max-w-xs leading-relaxed mb-4">
+                Scan a barcode using your handheld scanner, press <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-800 border border-slate-700 rounded text-slate-300">⌘K</kbd> to simulate, or click a sample item:
               </p>
 
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <div className="flex gap-2 flex-wrap justify-center">
                 <button
                   onClick={() => handleBarcodeScanned('8901000000101')}
-                  className="action-btn-ghost"
+                  className="px-3 py-1.5 text-xs font-medium border border-slate-800 bg-slate-900 hover:border-slate-700 hover:bg-slate-850 text-slate-300 rounded-md transition"
                 >
                   Amoxicillin 500mg (FEFO)
                 </button>
 
                 <button
                   onClick={() => handleBarcodeScanned('8901000000102')}
-                  className="action-btn-ghost"
+                  className="px-3 py-1.5 text-xs font-medium border border-slate-800 bg-slate-900 hover:border-slate-700 hover:bg-slate-850 text-slate-300 rounded-md transition"
                 >
                   Paracetamol 650mg
                 </button>
 
                 <button
                   onClick={() => handleBarcodeScanned('8901000000001')}
-                  className="action-btn-ghost"
+                  className="px-3 py-1.5 text-xs font-medium border border-slate-800 bg-slate-900 hover:border-slate-700 hover:bg-slate-850 text-slate-300 rounded-md transition"
                 >
                   Retail Soda (FMCG)
                 </button>
               </div>
             </div>
           ) : (
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              <table className="modern-table">
-                <thead>
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider font-semibold sticky top-0 border-b border-slate-800 z-10">
                   <tr>
-                    <th>Item Description</th>
-                    <th>Batch / Expiry</th>
-                    <th style={{ textAlign: 'center' }}>Qty</th>
-                    <th style={{ textAlign: 'right' }}>Unit Price</th>
-                    <th style={{ textAlign: 'right' }}>Line Total</th>
-                    <th style={{ textAlign: 'center', width: '36px' }}></th>
+                    <th className="py-2.5 px-4">Item Description</th>
+                    <th className="py-2.5 px-4">Batch / Expiry</th>
+                    <th className="py-2.5 px-4 text-center">Qty</th>
+                    <th className="py-2.5 px-4 text-right">Unit Price</th>
+                    <th className="py-2.5 px-4 text-right">Line Total</th>
+                    <th className="py-2.5 px-4 text-center w-10"></th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-800/60">
                   {cart.map((item) => (
-                    <tr key={item.cartId}>
-                      <td>
-                        <div style={{ fontWeight: 600, color: 'var(--slate-100)' }}>{item.productName}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--slate-400)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                    <tr key={item.cartId} className="hover:bg-slate-900/50 transition">
+                      <td className="py-2.5 px-4">
+                        <div className="font-semibold text-slate-100">{item.productName}</div>
+                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">
                           SKU: {item.sku} • {item.barcode}
                         </div>
                       </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="pill pill-emerald" style={{ fontFamily: 'var(--font-mono)' }}>
+                      <td className="py-2.5 px-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/50 font-mono text-[11px]">
                             {item.batchNumber}
                           </span>
                           {item.isNearExpiry && (
-                            <span className="pill pill-amber">
+                            <span className="px-2 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/50 text-[11px] flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" />
                               {item.daysToExpiry}d left
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--slate-400)', marginTop: '3px' }}>
+                        <div className="text-[11px] text-slate-400 mt-1">
                           Exp: {item.expiryDate}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div className="stepper-pill">
+                      <td className="py-2.5 px-4 text-center">
+                        <div className="inline-flex items-center bg-slate-950 border border-slate-800 rounded p-0.5">
                           <button
-                            className="stepper-btn"
                             onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
+                            className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded"
                           >
-                            -
+                            <Minus className="w-3 h-3" />
                           </button>
-                          <span className="stepper-val">{item.quantity}</span>
+                          <span className="min-w-6 text-center font-mono font-semibold text-slate-100 text-xs">
+                            {item.quantity}
+                          </span>
                           <button
-                            className="stepper-btn"
                             onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
-                            style={{ color: 'var(--emerald-500)' }}
+                            className="w-5 h-5 flex items-center justify-center text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded"
                           >
-                            +
+                            <Plus className="w-3 h-3" />
                           </button>
                         </div>
                       </td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--slate-300)' }}>
+                      <td className="py-2.5 px-4 text-right font-mono text-slate-300">
                         ${item.unitPrice.toFixed(2)}
                       </td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--slate-50)' }}>
+                      <td className="py-2.5 px-4 text-right font-mono font-semibold text-slate-100">
                         ${((item.quantity * item.unitPrice) * (1 + item.taxRate / 100)).toFixed(2)}
                       </td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td className="py-2.5 px-4 text-center">
                         <button
                           onClick={() => removeCartItem(item.cartId)}
-                          style={{
-                            background: 'transparent',
-                            color: 'var(--slate-500)',
-                            fontSize: '13px',
-                            padding: '3px'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.color = 'var(--rose-500)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--slate-500)'}
+                          className="p-1 text-slate-500 hover:text-rose-400 rounded transition"
                           title="Remove item"
                         >
-                          ✕
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
@@ -754,17 +682,11 @@ export function App() {
 
           {/* Toast Notification */}
           {statusNotification && (
-            <div style={{
-              padding: '7px 14px',
-              background: statusNotification.type === 'error' ? 'var(--rose-bg)' : 'var(--emerald-bg)',
-              borderTop: `1px solid ${statusNotification.type === 'error' ? 'var(--rose-border)' : 'var(--emerald-border)'}`,
-              color: statusNotification.type === 'error' ? '#fb7185' : '#34d399',
-              fontSize: '12px',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
+            <div className={`px-4 py-2 border-t text-xs font-medium flex items-center gap-2 ${
+              statusNotification.type === 'error'
+                ? 'bg-rose-950/40 border-rose-900/60 text-rose-300'
+                : 'bg-emerald-950/40 border-emerald-900/60 text-emerald-300'
+            }`}>
               <span>{statusNotification.type === 'error' ? '⚠️' : '✓'}</span>
               <span>{statusNotification.text}</span>
             </div>
@@ -772,102 +694,87 @@ export function App() {
         </div>
 
         {/* RIGHT PANE: CHECKOUT COMMAND DECK (Clean, Modern, Slate Borders) */}
-        <div className="checkout-panel">
-          {/* Summary Card */}
-          <div className="summary-card">
-            <div className="summary-line">
+        <div className="w-[380px] lg:w-[420px] bg-slate-900 flex flex-col p-4 gap-3.5 overflow-y-auto shrink-0 border-l border-slate-800">
+          {/* Top Section: Payment Summary Card */}
+          <div className="bg-slate-950 border border-slate-800 rounded-lg p-4">
+            <div className="flex justify-between text-xs text-slate-400 mb-2">
               <span>Subtotal</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>${cartSubtotal.toFixed(2)}</span>
+              <span className="font-mono text-slate-300">${cartSubtotal.toFixed(2)}</span>
             </div>
 
             {cartDiscount > 0 && (
-              <div className="summary-line" style={{ color: 'var(--rose-500)' }}>
+              <div className="flex justify-between text-xs text-rose-400 mb-2">
                 <span>Discounts</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>-${cartDiscount.toFixed(2)}</span>
+                <span className="font-mono">-${cartDiscount.toFixed(2)}</span>
               </div>
             )}
 
-            <div className="summary-line" style={{ marginBottom: 0 }}>
+            <div className="flex justify-between text-xs text-slate-400 mb-3">
               <span>Tax / VAT (5%)</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>${cartTax.toFixed(2)}</span>
+              <span className="font-mono text-slate-300">${cartTax.toFixed(2)}</span>
             </div>
 
-            <div className="summary-total-due">
-              <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--slate-400)' }}>
-                Total Due
-              </span>
-              <span style={{ fontSize: '24px', fontWeight: 800, color: 'var(--slate-50)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>
+            <div className="pt-3 border-t border-slate-800 flex justify-between items-baseline">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Grand Total</span>
+              <span className="text-2xl font-bold font-mono text-emerald-400 tracking-tight">
                 ${cartGrandTotal.toFixed(2)}
               </span>
             </div>
           </div>
 
-          {/* Clinical Prescription Link (Hospital Pharmacy Mode) */}
+          {/* Middle Section: Collapsible Clinical Prescription Form (Hospital Pharmacy Mode) */}
           {isPharmacy && (
-            <div style={{
-              background: 'var(--slate-950)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
-              overflow: 'hidden'
-            }}>
-              <div
+            <div className="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+              <button
+                type="button"
                 onClick={() => setIsClinicalOpen(!isClinicalOpen)}
-                style={{
-                  padding: '10px 14px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  userSelect: 'none'
-                }}
+                className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-slate-900/50 transition"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--slate-200)' }}>
-                    Prescription Link
-                  </span>
-                  <kbd className="kbd-badge">F4</kbd>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-300">Prescription Details</span>
+                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-800 border border-slate-700 rounded text-slate-400">
+                    F4
+                  </kbd>
                 </div>
-                <span style={{ fontSize: '9px', color: 'var(--slate-500)', transform: isClinicalOpen ? 'rotate(180deg)' : 'none', transition: 'transform 120ms ease' }}>
-                  ▼
-                </span>
-              </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isClinicalOpen ? 'rotate-180' : ''}`} />
+              </button>
 
               {isClinicalOpen && (
-                <div style={{ padding: '0 12px 12px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div className="p-3 pt-0 grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <label style={{ fontSize: '10.5px', color: 'var(--slate-400)', display: 'block', marginBottom: '3px' }}>Patient MRN</label>
+                    <label className="text-[10px] text-slate-400 font-medium block mb-1">Patient MRN</label>
                     <input
                       type="text"
                       value={patientMrn}
                       onChange={e => setPatientMrn(e.target.value)}
-                      style={{ width: '100%', padding: '5px 8px', fontSize: '11.5px' }}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition"
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '10.5px', color: 'var(--slate-400)', display: 'block', marginBottom: '3px' }}>Patient Name</label>
+                    <label className="text-[10px] text-slate-400 font-medium block mb-1">Patient Name</label>
                     <input
                       type="text"
                       value={patientName}
                       onChange={e => setPatientName(e.target.value)}
-                      style={{ width: '100%', padding: '5px 8px', fontSize: '11.5px' }}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition"
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '10.5px', color: 'var(--slate-400)', display: 'block', marginBottom: '3px' }}>Doctor License</label>
+                    <label className="text-[10px] text-slate-400 font-medium block mb-1">Doctor License</label>
                     <input
                       type="text"
                       value={doctorLicense}
                       onChange={e => setDoctorLicense(e.target.value)}
-                      style={{ width: '100%', padding: '5px 8px', fontSize: '11.5px' }}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition"
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '10.5px', color: 'var(--slate-400)', display: 'block', marginBottom: '3px' }}>Rx Number</label>
+                    <label className="text-[10px] text-slate-400 font-medium block mb-1">Rx Number</label>
                     <input
                       type="text"
                       value={prescriptionNumber}
                       onChange={e => setPrescriptionNumber(e.target.value)}
-                      style={{ width: '100%', padding: '5px 8px', fontSize: '11.5px' }}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition"
                     />
                   </div>
                 </div>
@@ -875,45 +782,55 @@ export function App() {
             </div>
           )}
 
-          {/* Payment Method Tabs */}
+          {/* Payment Methods: Clean Segmented Control with Lucide Icons */}
           <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--slate-400)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
+            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
               Payment Method
             </label>
-            <div className="segmented-control">
+            <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 border border-slate-800 rounded-lg">
               <button
-                className={`segmented-control-item ${paymentMethod === 'CASH' ? 'active' : ''}`}
                 onClick={() => setPaymentMethod('CASH')}
+                className={`flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-md transition ${
+                  paymentMethod === 'CASH'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                💵 Cash
+                <Banknote className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Cash</span>
               </button>
               <button
-                className={`segmented-control-item ${paymentMethod === 'CREDIT_CARD' ? 'active' : ''}`}
                 onClick={() => setPaymentMethod('CREDIT_CARD')}
+                className={`flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-md transition ${
+                  paymentMethod === 'CREDIT_CARD'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                💳 Card
+                <CreditCard className="w-3.5 h-3.5 text-blue-400" />
+                <span>Card</span>
               </button>
               <button
-                className={`segmented-control-item ${paymentMethod === 'UPI_QR' ? 'active' : ''}`}
                 onClick={() => setPaymentMethod('UPI_QR')}
+                className={`flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-md transition ${
+                  paymentMethod === 'UPI_QR'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                📱 UPI / QR
+                <QrCode className="w-3.5 h-3.5 text-amber-400" />
+                <span>UPI / QR</span>
               </button>
             </div>
           </div>
 
           {/* Cash Tendered & Quick Bills */}
           {paymentMethod === 'CASH' && (
-            <div style={{
-              background: 'var(--slate-950)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '12px 14px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--slate-400)' }}>CASH TENDERED</span>
+            <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
+              <div className="flex justify-between items-center mb-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                <span>Cash Tendered</span>
                 {changeDue > 0 && isFinite(changeDue) && changeDue <= 100000 && (
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--emerald-500)', fontFamily: 'var(--font-mono)' }}>
+                  <span className="text-emerald-400 font-mono text-xs normal-case font-bold">
                     Change: ${changeDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 )}
@@ -938,37 +855,22 @@ export function App() {
                     e.preventDefault();
                   }
                 }}
-                style={{
-                  width: '100%',
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-mono)',
-                  marginBottom: '8px',
-                  padding: '7px 10px'
-                }}
+                className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-1.5 text-sm font-bold font-mono text-slate-100 focus:outline-none focus:border-emerald-500 mb-2 transition"
               />
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
+              <div className="grid grid-cols-4 gap-1.5">
                 {[20, 50, 100].map(amt => (
                   <button
                     key={amt}
                     onClick={() => setTenderedAmount(amt.toString())}
-                    className="action-btn-ghost"
-                    style={{ padding: '4px 0', justifyContent: 'center', fontSize: '11px' }}
+                    className="py-1 text-xs font-medium text-slate-300 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded transition"
                   >
                     ${amt}
                   </button>
                 ))}
                 <button
                   onClick={() => setTenderedAmount(cartGrandTotal.toFixed(2))}
-                  className="action-btn-ghost"
-                  style={{
-                    padding: '4px 0',
-                    justifyContent: 'center',
-                    fontSize: '11px',
-                    borderColor: 'var(--emerald-border)',
-                    color: 'var(--emerald-500)'
-                  }}
+                  className="py-1 text-xs font-semibold text-emerald-400 bg-emerald-950/30 border border-emerald-900/60 hover:border-emerald-700 rounded transition"
                 >
                   Exact
                 </button>
@@ -976,15 +878,18 @@ export function App() {
             </div>
           )}
 
-          {/* Primary Action Button (Subtle Emerald Green) */}
+          {/* Bottom Action: Full-width Primary Checkout Button with Emerald Fill */}
           <button
             onClick={handleCheckoutSubmit}
             disabled={cart.length === 0}
-            className="checkout-btn-primary"
-            style={{ marginTop: 'auto' }}
+            className={`w-full py-3.5 px-4 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 mt-auto transition shadow-sm ${
+              cart.length > 0
+                ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white cursor-pointer shadow-emerald-950/50'
+                : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+            }`}
           >
-            <span>COMPLETE CHECKOUT</span>
-            <kbd className="kbd-badge" style={{ background: 'rgba(0, 0, 0, 0.25)', borderColor: 'rgba(255, 255, 255, 0.2)', color: '#ffffff' }}>
+            <span>Complete Checkout</span>
+            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-emerald-700/60 border border-emerald-500/40 text-emerald-100 rounded">
               F12
             </kbd>
           </button>
