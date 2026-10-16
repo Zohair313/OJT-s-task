@@ -530,84 +530,84 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       </header>
 
       {/* 2. MAIN WORKSPACE */}
-      <div className="flex-1 flex flex-col overflow-hidden p-6 gap-4">
+      <div className="flex-1 flex flex-col overflow-hidden p-6 gap-5 w-full max-w-[2200px] mx-auto">
         
         {/* KPI Metric Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-sm">
             <div>
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Total Products
               </div>
-              <div className="text-2xl font-bold font-mono text-slate-100 mt-1">
+              <div className="text-3xl font-extrabold font-mono text-slate-100 mt-1.5">
                 {totalCount}
               </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Active SKU catalog</div>
+              <div className="text-xs text-slate-500 mt-1">Active SKU catalog</div>
             </div>
-            <div className="w-11 h-11 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-emerald-400">
-              <Package className="w-5 h-5" />
+            <div className="w-12 h-12 rounded-xl bg-emerald-950/50 border border-emerald-900/60 flex items-center justify-center text-emerald-400 shadow-sm">
+              <Package className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-sm">
             <div>
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Low Stock (≤ ROP)
               </div>
-              <div className={`text-2xl font-bold font-mono mt-1 ${lowStockCount > 0 ? 'text-amber-400' : 'text-slate-100'}`}>
+              <div className={`text-3xl font-extrabold font-mono mt-1.5 ${lowStockCount > 0 ? 'text-amber-400' : 'text-slate-100'}`}>
                 {lowStockCount}
               </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Needs reorder replenishment</div>
+              <div className="text-xs text-slate-500 mt-1">Needs reorder replenishment</div>
             </div>
-            <div className={`w-11 h-11 rounded-xl border flex items-center justify-center ${
+            <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shadow-sm ${
               lowStockCount > 0 
                 ? 'bg-amber-950/40 border-amber-900/60 text-amber-400' 
                 : 'bg-slate-950 border-slate-800 text-slate-500'
             }`}>
-              <AlertTriangle className="w-5 h-5" />
+              <AlertTriangle className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-sm">
             <div>
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Out of Stock
               </div>
-              <div className={`text-2xl font-bold font-mono mt-1 ${outOfStockCount > 0 ? 'text-rose-400' : 'text-slate-100'}`}>
+              <div className={`text-3xl font-extrabold font-mono mt-1.5 ${outOfStockCount > 0 ? 'text-rose-400' : 'text-slate-100'}`}>
                 {outOfStockCount}
               </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Zero inventory units remaining</div>
+              <div className="text-xs text-slate-500 mt-1">Zero inventory units remaining</div>
             </div>
-            <div className={`w-11 h-11 rounded-xl border flex items-center justify-center ${
+            <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shadow-sm ${
               outOfStockCount > 0 
                 ? 'bg-rose-950/40 border-rose-900/60 text-rose-400' 
                 : 'bg-slate-950 border-slate-800 text-slate-500'
             }`}>
-              <Ban className="w-5 h-5" />
+              <Ban className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-sm">
             <div>
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Categories
               </div>
-              <div className="text-2xl font-bold font-mono text-slate-100 mt-1">
+              <div className="text-3xl font-extrabold font-mono text-slate-100 mt-1.5">
                 {categories.length}
               </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Active merchandise classes</div>
+              <div className="text-xs text-slate-500 mt-1">Active merchandise classes</div>
             </div>
-            <div className="w-11 h-11 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-blue-400">
-              <Tag className="w-5 h-5" />
+            <div className="w-12 h-12 rounded-xl bg-blue-950/50 border border-blue-900/60 flex items-center justify-center text-blue-400 shadow-sm">
+              <Tag className="w-6 h-6" />
             </div>
           </div>
         </div>
 
         {/* Filter & Live Search Toolbar */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-sm">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-sm">
           {/* Live Search Input */}
-          <div className="relative flex-1 min-w-[320px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="relative flex-1 min-w-[340px]">
+            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="Search product by name, SKU, barcode, generic formulation, or brand..."
@@ -616,7 +616,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full h-10 pl-10 pr-9 bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none transition shadow-sm"
+              className="w-full h-11 pl-11 pr-10 bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none transition shadow-sm"
             />
             {searchQuery && (
               <button
@@ -624,52 +624,54 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   setSearchQuery('');
                   setCurrentPage(1);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs p-1"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs p-1"
               >
                 ✕
               </button>
             )}
           </div>
 
-          {/* Category Dropdown Filter */}
-          <div className="relative flex items-center">
-            <select
-              value={selectedCategory}
-              onChange={e => {
-                setSelectedCategory(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="appearance-none h-10 bg-slate-950 border border-slate-800 rounded-lg px-3.5 pr-8 text-xs font-medium text-slate-200 hover:border-slate-700 cursor-pointer focus:outline-none focus:border-emerald-500 transition"
-            >
-              <option value="ALL">All Categories ({categories.length})</option>
-              {categories.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
-          </div>
-
-          {/* Stock Filter Pills */}
-          <div className="flex bg-slate-950 border border-slate-800 rounded-lg p-1 gap-1">
-            {(['ALL', 'IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'] as const).map(filter => (
-              <button
-                key={filter}
-                onClick={() => {
-                  setStockFilter(filter);
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Category Dropdown Filter */}
+            <div className="relative flex items-center">
+              <select
+                value={selectedCategory}
+                onChange={e => {
+                  setSelectedCategory(e.target.value);
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${
-                  stockFilter === filter
-                    ? 'bg-slate-800 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
+                className="appearance-none h-11 bg-slate-950 border border-slate-800 rounded-lg px-4 pr-9 text-xs font-medium text-slate-200 hover:border-slate-700 cursor-pointer focus:outline-none focus:border-emerald-500 transition"
               >
-                {filter === 'ALL' && 'All'}
-                {filter === 'IN_STOCK' && 'In Stock'}
-                {filter === 'LOW_STOCK' && 'Low Stock'}
-                {filter === 'OUT_OF_STOCK' && 'Depleted'}
-              </button>
-            ))}
+                <option value="ALL">All Categories ({categories.length})</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+            </div>
+
+            {/* Stock Filter Pills */}
+            <div className="flex bg-slate-950 border border-slate-800 rounded-lg p-1 gap-1">
+              {(['ALL', 'IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'] as const).map(filter => (
+                <button
+                  key={filter}
+                  onClick={() => {
+                    setStockFilter(filter);
+                    setCurrentPage(1);
+                  }}
+                  className={`h-9 px-3.5 text-xs font-semibold rounded-md transition ${
+                    stockFilter === filter
+                      ? 'bg-slate-800 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {filter === 'ALL' && 'All'}
+                  {filter === 'IN_STOCK' && 'In Stock'}
+                  {filter === 'LOW_STOCK' && 'Low Stock'}
+                  {filter === 'OUT_OF_STOCK' && 'Depleted'}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -703,17 +705,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           ) : (
             <div className="flex-1 overflow-x-auto overflow-y-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full min-w-[1200px] text-left border-collapse">
                 <thead className="bg-slate-950 border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider sticky top-0 z-10">
                   <tr>
-                    <th className="py-3.5 px-6" style={{ width: '30%' }}>Product Information</th>
-                    <th className="py-3.5 px-5" style={{ width: '18%' }}>SKU & Barcode</th>
-                    <th className="py-3.5 px-5" style={{ width: '13%' }}>Category</th>
-                    <th className="py-3.5 px-5 text-right" style={{ width: '11%' }}>Unit Price</th>
-                    <th className="py-3.5 px-4 text-center" style={{ width: '6%' }}>Tax %</th>
-                    <th className="py-3.5 px-5 text-center" style={{ width: '11%' }}>Stock Level</th>
-                    <th className="py-3.5 px-4 text-center" style={{ width: '6%' }}>Status</th>
-                    <th className="py-3.5 px-5 text-center" style={{ width: '9%' }}>Actions</th>
+                    <th className="py-4 px-6 w-[28%]">Product Information</th>
+                    <th className="py-4 px-6 w-[18%]">SKU & Barcode</th>
+                    <th className="py-4 px-5 w-[14%]">Category</th>
+                    <th className="py-4 px-5 text-right w-[11%]">Unit Price</th>
+                    <th className="py-4 px-4 text-center w-[7%]">Tax %</th>
+                    <th className="py-4 px-5 text-center w-[11%]">Stock Level</th>
+                    <th className="py-4 px-4 text-center w-[7%]">Status</th>
+                    <th className="py-4 px-6 text-center w-[12%]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80">
@@ -738,7 +740,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       >
                         {/* 1. Product Details */}
                         <td className="py-4 px-6">
-                          <div className="font-semibold text-slate-100 text-sm tracking-tight group-hover:text-white transition">
+                          <div className="font-semibold text-slate-100 text-sm leading-snug group-hover:text-white transition">
                             {p.name}
                           </div>
                           <div className="flex items-center gap-2 flex-wrap mt-1.5">
@@ -748,7 +750,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               </span>
                             )}
                             {p.brand && (
-                              <span className="text-[10px] bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded font-medium">
+                              <span className="text-[11px] bg-slate-800 border border-slate-700 text-slate-300 px-2.5 py-0.5 rounded font-medium">
                                 {p.brand}
                               </span>
                             )}
@@ -761,7 +763,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </td>
 
                         {/* 2. SKU & Barcode */}
-                        <td className="py-4 px-5">
+                        <td className="py-4 px-6">
                           <div className="font-mono text-xs text-slate-200 font-medium">
                             <span className="text-slate-500 mr-1.5">SKU:</span>
                             <span>{p.sku}</span>
@@ -774,7 +776,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                         {/* 3. Category */}
                         <td className="py-4 px-5">
-                          <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-medium bg-slate-800/80 border border-slate-700/80 text-slate-300">
+                          <span className="inline-flex px-3 py-1 rounded-md text-xs font-medium bg-slate-800/80 border border-slate-700/80 text-slate-300">
                             {p.categoryName || 'General'}
                           </span>
                         </td>
@@ -824,12 +826,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </td>
 
                         {/* 8. Actions */}
-                        <td className="py-4 px-5 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="py-4 px-6 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleOpenEdit(p)}
                               title="Edit Details, Stock & Price"
-                              className="h-8 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-emerald-500/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                              className="h-8 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-emerald-500/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
                             >
                               <Edit2 className="w-3.5 h-3.5 text-emerald-400" />
                               <span>Edit</span>
