@@ -276,6 +276,14 @@ export class CatalogService {
             updatedAt: new Date().toISOString()
           });
         }
+        // Zero out secondary batches so total stock matches targetStock precisely
+        for (let i = 1; i < batches.length; i++) {
+          const secStock = dbStore.stocks.get(batches[i].id);
+          if (secStock) {
+            secStock.quantity = 0;
+            secStock.updatedAt = new Date().toISOString();
+          }
+        }
         // Record audit movement
         dbStore.stockMovements.push({
           id: uuidv4(),
@@ -332,12 +340,22 @@ export class CatalogService {
   }
 
   /**
-   * Soft-delete or toggle active status of product
+   * Delete or toggle active status of product
    */
-  public async deleteProduct(tenantId: string, id: string): Promise<{ success: boolean; message: string }> {
+  public async deleteProduct(tenantId: string, id: string, hard: boolean = true): Promise<{ success: boolean; message: string }> {
     const product = dbStore.products.get(id);
     if (!product) {
       throw { status: 404, message: `Product ${id} not found` };
+    }
+    if (hard) {
+      dbStore.products.delete(id);
+      for (const [batchId, b] of dbStore.batches.entries()) {
+        if (b.productId === id) {
+          dbStore.batches.delete(batchId);
+          dbStore.stocks.delete(batchId);
+        }
+      }
+      return { success: true, message: `Product '${product.name}' deleted successfully from catalog.` };
     }
     product.isActive = false;
     dbStore.products.set(id, product);

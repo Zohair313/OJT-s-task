@@ -74,7 +74,8 @@ apiRouter.put('/products/:id', async (req: Request, res: Response) => {
 apiRouter.delete('/products/:id', async (req: Request, res: Response) => {
   try {
     const tenantId = getTenantId(req);
-    const result = await catalogService.deleteProduct(tenantId, req.params.id);
+    const hard = req.query.hard !== 'false';
+    const result = await catalogService.deleteProduct(tenantId, req.params.id, hard);
     res.json(result);
   } catch (err: any) {
     res.status(err.status || 500).json({ error: err.code || 'ERROR', message: err.message });

@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Edit2,
   Power,
+  Trash2,
   Database,
   Building2,
   ShoppingCart,
@@ -73,6 +74,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [isDbHelpOpen, setIsDbHelpOpen] = useState<boolean>(false);
   const [dbHealthStatus, setDbHealthStatus] = useState<string>('Checking database mode...');
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState<boolean>(false);
   
   // Edit Form State
   const [editForm, setEditForm] = useState({
@@ -317,6 +320,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       }
     } catch (err) {
       showToast('Error toggling status', 'error');
+    }
+  };
+
+  // Permanently Delete Product
+  const confirmDeleteProduct = async (p: Product) => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/v1/products/${p.id}?tenantId=${tenantId}&hard=true`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Product '${p.name}' deleted successfully from catalog!`, 'success');
+        setProductToDelete(null);
+        if (editingProduct?.id === p.id) {
+          setEditingProduct(null);
+        }
+        loadData();
+      } else {
+        showToast(data.message || 'Failed to delete product', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Network error while deleting product', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -747,11 +775,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                         {/* 8. Actions */}
                         <td className="py-4 px-5 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleOpenEdit(p)}
                               title="Edit Details, Stock & Price"
-                              className="h-8 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-emerald-500/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                              className="h-8 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-emerald-500/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
                             >
                               <Edit2 className="w-3.5 h-3.5 text-emerald-400" />
                               <span>Edit</span>
@@ -762,11 +790,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               title={p.isActive ? 'Deactivate Product' : 'Activate Product'}
                               className={`h-8 w-8 rounded-lg border flex items-center justify-center transition shadow-sm ${
                                 p.isActive
-                                  ? 'border-slate-800 bg-slate-900 text-slate-400 hover:text-rose-400 hover:border-rose-900/50'
+                                  ? 'border-slate-800 bg-slate-900 text-slate-400 hover:text-amber-400 hover:border-amber-900/50'
                                   : 'border-emerald-900/50 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-900/40'
                               }`}
                             >
                               <Power className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => setProductToDelete(p)}
+                              title="Permanently Delete Product"
+                              className="h-8 w-8 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-rose-400 hover:border-rose-900/60 hover:bg-rose-950/30 flex items-center justify-center transition shadow-sm"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -1064,21 +1100,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               {/* Form Action Buttons */}
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex justify-between items-center pt-3 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setEditingProduct(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition"
+                  onClick={() => {
+                    const p = editingProduct;
+                    setEditingProduct(null);
+                    setProductToDelete(p);
+                  }}
+                  className="text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 text-xs font-semibold flex items-center gap-1.5 px-3 py-2 rounded-lg transition"
                 >
-                  Cancel
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Product</span>
                 </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shadow-sm"
-                >
-                  {saving ? 'Saving...' : 'Save Product Changes'}
-                </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingProduct(null)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shadow-sm"
+                  >
+                    {saving ? 'Saving...' : 'Save Product Changes'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1318,6 +1369,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition"
               >
                 Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* DELETE PRODUCT CONFIRMATION MODAL */}
+      {/* ========================================================================= */}
+      {productToDelete && (
+        <div className="modal-overlay">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl text-slate-100">
+            <div className="flex items-center gap-3 mb-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-950/60 border border-rose-900/60 flex items-center justify-center text-rose-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-100">Delete Product?</h3>
+                <p className="text-xs text-slate-400 font-mono">SKU: {productToDelete.sku}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-300 mb-6 leading-relaxed">
+              Are you sure you want to permanently remove <strong className="text-white">"{productToDelete.name}"</strong> and its inventory from the catalog? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setProductToDelete(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmDeleteProduct(productToDelete)}
+                disabled={deleting}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition shadow-sm"
+              >
+                {deleting ? 'Deleting...' : 'Yes, Delete'}
               </button>
             </div>
           </div>
