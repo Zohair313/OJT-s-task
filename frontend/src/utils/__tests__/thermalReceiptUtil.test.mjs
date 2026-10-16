@@ -4,7 +4,7 @@ import {
   formatReceiptLine,
   truncateText,
   generateEscPosText
-} from '../thermalReceiptUtil.js';
+} from '../thermalReceiptUtil.ts';
 
 console.log('--- 1. Testing formatCurrency ---');
 assert.strictEqual(formatCurrency(12.5), '$12.50');
