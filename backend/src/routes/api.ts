@@ -31,7 +31,11 @@ apiRouter.get('/tenants', (req: Request, res: Response) => {
 
 // Categories list
 apiRouter.get('/categories', (req: Request, res: Response) => {
-  const categories = Array.from(dbStore.categories.values());
+  const tenantId = req.query.tenantId as string;
+  const all = Array.from(dbStore.categories.values());
+  const categories = (!tenantId || tenantId === 'all') 
+    ? all 
+    : all.filter(c => !c.tenantId || c.tenantId === tenantId);
   res.json(categories);
 });
 

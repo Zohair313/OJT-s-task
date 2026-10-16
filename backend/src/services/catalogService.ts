@@ -23,8 +23,16 @@ export class CatalogService {
       );
     }
 
-    const total = filtered.length;
-    const paginated = filtered.slice(offset, offset + limit);
+    // Sort so newly created or updated products appear at the very top of Page 1
+    const sorted = [...filtered].sort((a, b) => {
+      const timeA = new Date((a as any).updatedAt || a.createdAt || 0).getTime();
+      const timeB = new Date((b as any).updatedAt || b.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.id || '').localeCompare(a.id || '');
+    });
+
+    const total = sorted.length;
+    const paginated = sorted.slice(offset, offset + limit);
 
     // Enrich with batches, total stock, and category name
     const enriched = paginated.map(p => {
@@ -107,9 +115,11 @@ export class CatalogService {
    * Create Product with Duplicate Barcode Guard
    */
   public async createProduct(tenantId: string, dto: CreateProductDTO): Promise<Product> {
+    const effectiveTenantId = (!tenantId || tenantId === 'all') ? 't-pharma-002' : tenantId;
+
     // 1. Guard: Check for duplicate barcode in this tenant
     const existingBarcode = Array.from(dbStore.products.values()).find(
-      p => p.tenantId === tenantId && p.barcode === dto.barcode
+      p => p.tenantId === effectiveTenantId && p.barcode === dto.barcode
     );
     if (existingBarcode) {
       throw {
@@ -121,7 +131,7 @@ export class CatalogService {
 
     // 2. Guard: Check for duplicate SKU
     const existingSku = Array.from(dbStore.products.values()).find(
-      p => p.tenantId === tenantId && p.sku.toLowerCase() === dto.sku.toLowerCase()
+      p => p.tenantId === effectiveTenantId && p.sku.toLowerCase() === dto.sku.toLowerCase()
     );
     if (existingSku) {
       throw {
@@ -131,9 +141,10 @@ export class CatalogService {
       };
     }
 
+    const nowIso = new Date().toISOString();
     const newProd: Product = {
       id: uuidv4(),
-      tenantId,
+      tenantId: effectiveTenantId,
       sku: dto.sku.trim(),
       barcode: dto.barcode.trim(),
       name: dto.name.trim(),
@@ -145,7 +156,8 @@ export class CatalogService {
       reorderPoint: dto.reorderPoint !== undefined ? Number(dto.reorderPoint) : 10,
       isPrescriptionRequired: !!dto.isPrescriptionRequired,
       isActive: true,
-      createdAt: new Date().toISOString()
+      createdAt: nowIso,
+      updatedAt: nowIso
     };
 
     dbStore.products.set(newProd.id, newProd);
@@ -325,6 +337,7 @@ export class CatalogService {
       }
     }
 
+    product.updatedAt = new Date().toISOString();
     dbStore.products.set(product.id, product);
 
     // Return enriched product

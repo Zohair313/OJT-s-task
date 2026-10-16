@@ -76,6 +76,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [dbHealthStatus, setDbHealthStatus] = useState<string>('Checking database mode...');
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
   
   // Edit Form State
   const [editForm, setEditForm] = useState({
@@ -190,6 +191,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     });
   };
 
+  // Open Add Product Modal with Auto-generated SKU, Barcode, and Defaults
+  const handleOpenAdd = () => {
+    setFormError(null);
+    const prefix = tenantId === 't-retail-001' ? 'RET' : 'MED';
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const autoSku = `SKU-${prefix}-${randomNum}`;
+    const autoBarcode = '890' + Math.floor(100000000 + Math.random() * 900000000);
+
+    setAddForm({
+      name: '',
+      sku: autoSku,
+      barcode: autoBarcode,
+      genericName: '',
+      brand: '',
+      categoryId: categories.length > 0 ? categories[0].id : '',
+      unitOfMeasure: tenantId === 't-retail-001' ? 'PCS' : 'BOX',
+      defaultTaxRate: 5.0,
+      initialPrice: 15.0,
+      initialStock: 50,
+      reorderPoint: 10,
+      isPrescriptionRequired: tenantId !== 't-retail-001'
+    });
+    setIsAddModalOpen(true);
+  };
+
   // Submit Product Update
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,11 +233,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setFormError('Barcode is required.');
       return;
     }
-    if (editForm.sellingPrice <= 0) {
+    if (Number(editForm.sellingPrice) <= 0) {
       setFormError('Selling price must be greater than $0.00.');
       return;
     }
-    if (editForm.stock < 0) {
+    if (Number(editForm.stock) < 0) {
       setFormError('Stock cannot be negative.');
       return;
     }
@@ -219,25 +245,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setSaving(true);
     setFormError(null);
 
+    const targetTenant = editingProduct.tenantId || (tenantId === 'all' ? 't-pharma-002' : tenantId);
+
     try {
-      const res = await fetch(`/api/v1/products/${editingProduct.id}?tenantId=${tenantId}`, {
+      const res = await fetch(`/api/v1/products/${editingProduct.id}?tenantId=${targetTenant}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify({
+          ...editForm,
+          sellingPrice: Number(editForm.sellingPrice),
+          stock: Number(editForm.stock),
+          defaultTaxRate: Number(editForm.defaultTaxRate),
+          reorderPoint: Number(editForm.reorderPoint)
+        })
       });
 
       const data = await res.json();
       if (!res.ok) {
         setFormError(data.message || 'Failed to update product');
+        showToast(data.message || 'Failed to update product', 'error');
         setSaving(false);
         return;
       }
 
       showToast(`Product '${data.name}' and stock updated!`, 'success');
       setEditingProduct(null);
+
+      // Optimistically update product in local table right away
+      setProducts(prev => prev.map(p => p.id === data.id ? { ...p, ...data } : p));
+      setHighlightedProductId(data.id);
+      setTimeout(() => setHighlightedProductId(null), 5000);
+
+      // Background sync
       loadData();
     } catch (err: any) {
       setFormError(err.message || 'Network error while updating product');
+      showToast(err.message || 'Network error while updating product', 'error');
     } finally {
       setSaving(false);
     }
@@ -262,12 +305,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setSaving(true);
     setFormError(null);
 
+    const targetTenant = (!tenantId || tenantId === 'all') ? 't-pharma-002' : tenantId;
+
     try {
-      const res = await fetch(`/api/v1/products?tenantId=${tenantId}`, {
+      const res = await fetch(`/api/v1/products?tenantId=${targetTenant}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...addForm,
+          initialPrice: Number(addForm.initialPrice),
+          initialStock: Number(addForm.initialStock),
+          defaultTaxRate: Number(addForm.defaultTaxRate),
+          reorderPoint: Number(addForm.reorderPoint),
           categoryId: addForm.categoryId || (categories.length > 0 ? categories[0].id : undefined)
         })
       });
@@ -275,29 +324,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const data = await res.json();
       if (!res.ok) {
         setFormError(data.message || 'Failed to create product');
+        showToast(data.message || 'Failed to create product', 'error');
         setSaving(false);
         return;
       }
 
       showToast(`New product '${data.name}' created with ${addForm.initialStock} units in stock!`, 'success');
       setIsAddModalOpen(false);
-      setAddForm({
-        name: '',
-        sku: '',
-        barcode: '',
-        genericName: '',
-        brand: '',
-        categoryId: '',
-        unitOfMeasure: 'PCS',
-        defaultTaxRate: 5.0,
-        initialPrice: 15.0,
-        initialStock: 50,
-        reorderPoint: 10,
-        isPrescriptionRequired: false
-      });
+
+      // Prepend to top of products list, jump to Page 1 and clear search so user sees it right away!
+      setProducts(prev => [data, ...prev.filter(p => p.id !== data.id)]);
+      setCurrentPage(1);
+      setSearchQuery('');
+      setHighlightedProductId(data.id);
+      setTimeout(() => setHighlightedProductId(null), 5000);
+
+      // Background sync
       loadData();
     } catch (err: any) {
       setFormError(err.message || 'Network error while creating product');
+      showToast(err.message || 'Network error while creating product', 'error');
     } finally {
       setSaving(false);
     }
@@ -465,10 +511,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {/* Add Product Button */}
           <button
-            onClick={() => {
-              setFormError(null);
-              setIsAddModalOpen(true);
-            }}
+            onClick={handleOpenAdd}
             className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
           >
             <Plus className="w-4 h-4" />
@@ -685,7 +728,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       : 0.0;
 
                     return (
-                      <tr key={p.id} className="hover:bg-slate-850/60 transition group">
+                      <tr 
+                        key={p.id} 
+                        className={`transition group ${
+                          p.id === highlightedProductId 
+                            ? 'bg-emerald-950/70 border-l-4 border-l-emerald-400 ring-1 ring-emerald-500/50' 
+                            : 'hover:bg-slate-850/60'
+                        }`}
+                      >
                         {/* 1. Product Details */}
                         <td className="py-4 px-6">
                           <div className="font-semibold text-slate-100 text-sm tracking-tight group-hover:text-white transition">
@@ -957,12 +1007,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="any"
                     min="0.01"
-                    max="10000"
                     required
                     value={editForm.sellingPrice}
-                    onChange={e => setEditForm({ ...editForm, sellingPrice: parseFloat(e.target.value) || 0 })}
+                    onChange={e => setEditForm({ ...editForm, sellingPrice: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
                     className="w-full h-10 bg-slate-950 border border-emerald-900/60 rounded-lg px-3.5 text-sm font-bold font-mono text-emerald-400 focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
@@ -978,7 +1027,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     max="100000"
                     required
                     value={editForm.stock}
-                    onChange={e => setEditForm({ ...editForm, stock: parseInt(e.target.value) || 0 })}
+                    onChange={e => setEditForm({ ...editForm, stock: e.target.value === '' ? ('' as any) : parseInt(e.target.value) || 0 })}
                     className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3.5 text-sm font-bold font-mono text-slate-100 focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
@@ -990,12 +1039,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="any"
                     min="0"
                     max="100"
                     required
                     value={editForm.defaultTaxRate}
-                    onChange={e => setEditForm({ ...editForm, defaultTaxRate: parseFloat(e.target.value) || 0 })}
+                    onChange={e => setEditForm({ ...editForm, defaultTaxRate: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
                     className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
@@ -1010,7 +1059,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     min="1"
                     max="10000"
                     value={editForm.reorderPoint}
-                    onChange={e => setEditForm({ ...editForm, reorderPoint: parseInt(e.target.value) || 10 })}
+                    onChange={e => setEditForm({ ...editForm, reorderPoint: e.target.value === '' ? ('' as any) : parseInt(e.target.value) || 10 })}
                     className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
@@ -1053,6 +1102,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     onChange={e => setEditForm({ ...editForm, categoryId: e.target.value })}
                     className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition"
                   >
+                    <option value="">General (Default Category)</option>
                     {categories.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
@@ -1222,18 +1272,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
 
+                {/* Live SVG Barcode Preview */}
+                <div className="col-span-2 bg-white p-3 rounded-lg flex flex-col items-center justify-center border border-slate-300">
+                  <BarcodeSvg value={addForm.barcode || '890000000000'} width={240} height={38} />
+                  <span className="text-[10px] text-slate-600 font-mono mt-1">
+                    Visual Barcode: {addForm.barcode || 'Auto-Generated'}
+                  </span>
+                </div>
+
                 <div>
                   <label className="block text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-1.5">
                     Initial Selling Price ($) *
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="any"
                     min="0.01"
-                    max="10000"
                     required
                     value={addForm.initialPrice}
-                    onChange={e => setAddForm({ ...addForm, initialPrice: parseFloat(e.target.value) || 0 })}
+                    onChange={e => setAddForm({ ...addForm, initialPrice: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
                     className="w-full h-10 bg-slate-950 border border-emerald-900/60 rounded-lg px-3.5 text-sm font-bold font-mono text-emerald-400 focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
@@ -1245,10 +1302,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <input
                     type="number"
                     min="0"
-                    max="10000"
+                    max="100000"
                     required
                     value={addForm.initialStock}
-                    onChange={e => setAddForm({ ...addForm, initialStock: parseInt(e.target.value) || 0 })}
+                    onChange={e => setAddForm({ ...addForm, initialStock: e.target.value === '' ? ('' as any) : parseInt(e.target.value) || 0 })}
                     className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3.5 text-sm font-bold font-mono text-slate-100 focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
@@ -1262,6 +1319,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     onChange={e => setAddForm({ ...addForm, categoryId: e.target.value })}
                     className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition"
                   >
+                    <option value="">General (Default Category)</option>
                     {categories.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
@@ -1274,11 +1332,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="any"
                     min="0"
                     max="100"
                     value={addForm.defaultTaxRate}
-                    onChange={e => setAddForm({ ...addForm, defaultTaxRate: parseFloat(e.target.value) || 0 })}
+                    onChange={e => setAddForm({ ...addForm, defaultTaxRate: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
                     className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>

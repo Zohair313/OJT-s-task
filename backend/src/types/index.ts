@@ -60,6 +60,7 @@ export interface Product {
   isPrescriptionRequired: boolean;
   isActive: boolean;
   createdAt: string;
+  updatedAt?: string;
   // Computed / Joined
   categoryName?: string;
   totalStock?: number;

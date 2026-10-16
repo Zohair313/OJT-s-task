@@ -124,6 +124,27 @@ export class InMemoryACIDStore {
       createdAt: new Date().toISOString()
     });
 
+    // 1b. Seed Merchandise & Clinical Categories
+    const initialCategories: Category[] = [
+      // Pharma Categories
+      { id: 'cat-pharma-01', tenantId: pharmaTenantId, name: 'Prescription Drugs (Rx)', description: 'Controlled Rx formulations' },
+      { id: 'cat-pharma-02', tenantId: pharmaTenantId, name: 'Over-the-Counter (OTC)', description: 'General OTC medicines' },
+      { id: 'cat-pharma-03', tenantId: pharmaTenantId, name: 'Antibiotics & Anti-Infectives', description: 'Broad and narrow spectrum antibiotics' },
+      { id: 'cat-pharma-04', tenantId: pharmaTenantId, name: 'Cardiovascular & Statins', description: 'Hypertension and lipid managers' },
+      { id: 'cat-pharma-05', tenantId: pharmaTenantId, name: 'Pain Relief & Analgesics', description: 'Analgesics and antipyretics' },
+      { id: 'cat-pharma-06', tenantId: pharmaTenantId, name: 'Vitamins & Supplements', description: 'Nutraceuticals and vitamins' },
+      // Retail Categories
+      { id: 'cat-ret-01', tenantId: retailTenantId, name: 'Beverages & Drinks', description: 'Cold drinks and beverages' },
+      { id: 'cat-ret-02', tenantId: retailTenantId, name: 'Snacks & Confectionery', description: 'Chips, cookies and snacks' },
+      { id: 'cat-ret-03', tenantId: retailTenantId, name: 'Dairy & Refrigerated', description: 'Milk, cheese, butter and yogurt' },
+      { id: 'cat-ret-04', tenantId: retailTenantId, name: 'Packaged Foods & Pantry', description: 'Staple groceries and grains' },
+      { id: 'cat-ret-05', tenantId: retailTenantId, name: 'Personal Care & Hygiene', description: 'Soaps, hygiene and cosmetics' }
+    ];
+
+    for (const cat of initialCategories) {
+      this.categories.set(cat.id, cat);
+    }
+
     // 2. Initial Cash Drawers
     this.cashDrawers.set('drw-retail-01', {
       id: 'drw-retail-01',
@@ -174,13 +195,15 @@ export class InMemoryACIDStore {
       const barcode = barcodeCounter.toString();
       barcodeCounter++;
 
-      const category = (i % 3 === 0) ? 'Beverages' : (i % 3 === 1) ? 'Snacks' : 'Dairy';
+      const catId = (i % 3 === 0) ? 'cat-ret-01' : (i % 3 === 1) ? 'cat-ret-02' : 'cat-ret-03';
+      const category = (i % 3 === 0) ? 'Beverages & Drinks' : (i % 3 === 1) ? 'Snacks' : 'Dairy';
       const taxRate = (i % 3 === 0) ? 5.00 : (i % 3 === 1) ? 10.00 : 0.00;
       const basePrice = 4.50 + (i % 12);
 
       this.products.set(prodId, {
         id: prodId,
         tenantId: retailTenantId,
+        categoryId: catId,
         sku: `SKU-RET-${1000 + i}`,
         barcode,
         name: `Retail Product #${i} (${category})`,
@@ -258,6 +281,7 @@ export class InMemoryACIDStore {
 
       const isAntibiotic = i % 3 === 0;
       const isAnalgesic = i % 3 === 1;
+      const catId = isAntibiotic ? 'cat-pharma-03' : isAnalgesic ? 'cat-pharma-05' : 'cat-pharma-04';
       const medName = isAntibiotic
         ? `Amoxicillin Trihydrate ${(250 + (i % 3) * 250)}mg`
         : isAnalgesic
@@ -270,6 +294,7 @@ export class InMemoryACIDStore {
       this.products.set(prodId, {
         id: prodId,
         tenantId: pharmaTenantId,
+        categoryId: catId,
         sku: `SKU-MED-${1000 + i}`,
         barcode,
         name: medName,
