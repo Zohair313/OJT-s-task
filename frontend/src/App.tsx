@@ -350,85 +350,47 @@ export function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
-      {/* 1. CLEAN TOP NAVBAR */}
-      <header style={{
-        height: '56px',
-        padding: '0 20px',
-        background: 'var(--bg-surface)',
-        borderBottom: '1px solid var(--border-subtle)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '16px',
-        zIndex: 20
-      }}>
-        {/* Left: Brand & Branch Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      {/* 1. TOP NAVBAR (Clean, Subtle, Zero Neon Clutter) */}
+      <header className="pos-header">
+        {/* Left: Brand, Nav Switcher, Branch Selector, Minimal Status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'linear-gradient(135deg, #10B981, #059669)',
+              width: '24px',
+              height: '24px',
+              borderRadius: 'var(--radius-xs)',
+              background: 'var(--emerald-600)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+              color: '#ffffff',
+              fontWeight: 800,
+              fontSize: '13px'
             }}>
-              <span style={{ fontSize: '15px', color: '#FFFFFF', fontWeight: 800 }}>+</span>
+              +
             </div>
-            <span style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            <span style={{ fontWeight: 700, fontSize: '14px', letterSpacing: '-0.02em', color: 'var(--slate-50)' }}>
               PulsePOS
             </span>
           </div>
 
-          {/* Navigation Pill: POS vs Admin */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            background: 'var(--bg-input)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '2px',
-            gap: '2px'
-          }}>
+          {/* Navigation Tabs: POS vs Admin */}
+          <div className="nav-tabs">
             <button
               onClick={() => navigateTo('pos')}
-              style={{
-                padding: '4px 10px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: 'var(--radius-xs)',
-                background: 'var(--bg-surface-elevated)',
-                color: '#FFF',
-                border: '1px solid var(--border-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
+              className="nav-tab active"
             >
               <span>🛒</span> POS Counter
             </button>
             <button
               onClick={() => navigateTo('admin')}
-              style={{
-                padding: '4px 10px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: 'var(--radius-xs)',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                border: '1px solid transparent',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
+              className="nav-tab"
             >
               <span>⚙️</span> Product Admin
             </button>
           </div>
 
-          <div style={{ height: '18px', width: '1px', background: 'var(--border-default)' }} />
+          <div style={{ height: '16px', width: '1px', background: 'var(--border-default)' }} />
 
           {/* Clean Branch Selector */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -440,13 +402,13 @@ export function App() {
               }}
               style={{
                 appearance: 'none',
-                background: 'var(--bg-surface-elevated)',
+                background: 'var(--slate-950)',
                 border: '1px solid var(--border-default)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '5px 28px 5px 10px',
-                fontSize: '12.5px',
+                padding: '4px 26px 4px 10px',
+                fontSize: '12px',
                 fontWeight: 500,
-                color: 'var(--text-primary)',
+                color: 'var(--slate-300)',
                 cursor: 'pointer'
               }}
             >
@@ -456,123 +418,68 @@ export function App() {
                 </option>
               ))}
             </select>
-            <span style={{ position: 'absolute', right: '10px', pointerEvents: 'none', fontSize: '10px', color: 'var(--text-muted)' }}>
+            <span style={{ position: 'absolute', right: '8px', pointerEvents: 'none', fontSize: '9px', color: 'var(--slate-500)' }}>
               ▼
             </span>
           </div>
 
-          {/* Subtle Status Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="pill pill-neutral">
-              <span className="status-dot-active" />
-              <span>Scanner Ready</span>
-            </div>
-            <div className={`pill ${isPharmacy ? 'pill-emerald' : 'pill-blue'}`}>
-              <span>{isPharmacy ? 'FEFO Pharmacy' : 'Retail Mart'}</span>
-            </div>
+          {/* Subtle Compact Status Indicator (No Neon Rainbow Badges) */}
+          <div className="status-indicator">
+            <span className="status-dot-emerald" />
+            <span>Ready</span>
             {lastScanLatency > 0 && (
-              <div className="pill pill-neutral" style={{ fontFamily: 'var(--font-mono)' }}>
-                <span>{lastScanLatency}ms</span>
-              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--slate-500)' }}>
+                • {lastScanLatency}ms
+              </span>
             )}
           </div>
         </div>
 
-        {/* Right: Unified Ghost Action Buttons */}
+        {/* Right: Clean Ghost Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={() => setShowSimulatorModal(true)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-secondary)',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '12px',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-muted)'}
-            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
+            className="action-btn-ghost"
           >
             <span>⚡ Simulator</span>
-            <kbd style={{ fontSize: '10px', background: 'var(--bg-app)', padding: '1px 4px', borderRadius: '3px', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>⌘K</kbd>
+            <kbd className="kbd-badge">⌘K</kbd>
           </button>
 
           <button
             onClick={() => setShowConcurrencyModal(true)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-secondary)',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '12px',
-              fontWeight: 500
-            }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-muted)'}
-            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
+            className="action-btn-ghost"
           >
             Race Test
           </button>
 
           <button
             onClick={() => setShowZReportModal(true)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-secondary)',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '12px',
-              fontWeight: 500
-            }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-muted)'}
-            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
+            className="action-btn-ghost"
           >
             Z-Report (F9)
           </button>
 
           <button
             onClick={() => setShowShortcutsHelp(true)}
-            style={{
-              width: '30px',
-              height: '30px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'transparent',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-muted)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '12px'
-            }}
-            title="Keyboard Shortcuts (F1)"
+            className="action-btn-ghost"
+            style={{ padding: '5px 8px' }}
+            title="Shortcuts Reference (F1)"
           >
             ?
           </button>
         </div>
       </header>
 
-      {/* 2. PROMINENT MODERN SEARCH BAR */}
-      <div style={{
-        padding: '12px 20px',
-        background: 'var(--bg-app)',
-        borderBottom: '1px solid var(--border-subtle)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{ position: 'relative', width: '100%', maxWidth: '980px' }}>
+      {/* 2. CLEAN WIDE SEARCH BAR */}
+      <div className="search-container">
+        <div className="search-box">
           <span style={{
             position: 'absolute',
-            left: '14px',
+            left: '12px',
             top: '50%',
             transform: 'translateY(-50%)',
-            fontSize: '14px',
-            color: 'var(--text-muted)',
+            fontSize: '13px',
+            color: 'var(--slate-500)',
             pointerEvents: 'none'
           }}>
             🔍
@@ -581,7 +488,8 @@ export function App() {
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Scan barcode with hardware reader or search by product name, SKU, or generic formula..."
+            className="search-input-field"
+            placeholder="Scan barcode with handheld reader or search product by name, SKU, generic..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onKeyDown={e => {
@@ -604,41 +512,20 @@ export function App() {
                 }
               }
             }}
-            style={{
-              width: '100%',
-              height: '42px',
-              padding: '0 80px 0 40px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '13.5px',
-              color: 'var(--text-primary)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
           />
 
-          <span style={{
-            position: 'absolute',
-            right: '12px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
-            <kbd style={{ fontSize: '10px', background: 'var(--bg-app)', padding: '2px 5px', borderRadius: '4px', border: '1px solid var(--border-default)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              F2
-            </kbd>
-          </span>
+          <div className="search-shortcut-badge">
+            <kbd className="kbd-badge">F2</kbd>
+          </div>
 
-          {/* Search Results Dropdown */}
+          {/* Search Dropdown */}
           {searchResults.length > 0 && (
             <div style={{
               position: 'absolute',
-              top: '48px',
+              top: '46px',
               left: 0,
               right: 0,
-              background: 'var(--bg-surface)',
+              background: 'var(--slate-900)',
               border: '1px solid var(--border-default)',
               borderRadius: 'var(--radius-md)',
               boxShadow: 'var(--shadow-lg)',
@@ -650,29 +537,29 @@ export function App() {
                   key={prod.id}
                   onClick={() => handleBarcodeScanned(prod.barcode)}
                   style={{
-                    padding: '10px 16px',
-                    borderBottom: '1px solid var(--border-subtle)',
+                    padding: '9px 14px',
+                    borderBottom: '1px solid rgba(30, 41, 59, 0.6)',
                     cursor: 'pointer',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    transition: 'background 120ms ease'
+                    transition: 'background 100ms ease'
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-surface-hover)'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--slate-850)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                    <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--slate-100)' }}>
                       {prod.name}
                     </div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--slate-400)', marginTop: '2px' }}>
                       SKU: {prod.sku} • Barcode: {prod.barcode} {prod.genericName ? `• ${prod.genericName}` : ''}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div className="pill pill-emerald" style={{ fontFamily: 'var(--font-mono)' }}>
+                    <span className="pill pill-emerald" style={{ fontFamily: 'var(--font-mono)' }}>
                       Stock: {prod.totalStock}
-                    </div>
+                    </span>
                   </div>
                 </div>
               ))}
@@ -684,18 +571,18 @@ export function App() {
       {/* 3. MAIN WORKSPACE (2-COLUMN SPLIT) */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* LEFT PANE: CART AREA */}
-        <div style={{ flex: '1 1 65%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-app)' }}>
+        <div style={{ flex: '1 1 65%', display: 'flex', flexDirection: 'column', background: 'var(--slate-950)', overflow: 'hidden' }}>
           {/* Cart Header */}
           <div style={{
-            padding: '12px 20px',
-            background: 'var(--bg-surface)',
-            borderBottom: '1px solid var(--border-subtle)',
+            padding: '10px 18px',
+            background: 'var(--slate-900)',
+            borderBottom: '1px solid var(--border-default)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--slate-100)' }}>
                 Active Cart
               </span>
               <span className="pill pill-neutral">
@@ -709,9 +596,9 @@ export function App() {
                 style={{
                   background: 'transparent',
                   color: 'var(--rose-500)',
-                  fontSize: '12px',
+                  fontSize: '11.5px',
                   fontWeight: 500,
-                  padding: '4px 8px',
+                  padding: '3px 8px',
                   borderRadius: 'var(--radius-xs)'
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--rose-bg)'}
@@ -732,100 +619,50 @@ export function App() {
               justifyContent: 'center',
               padding: '40px 20px'
             }}>
-              {/* Modern Minimal Vector Illustration */}
               <div style={{
-                width: '64px',
-                height: '64px',
+                width: '56px',
+                height: '56px',
                 borderRadius: '50%',
-                background: 'var(--bg-surface)',
+                background: 'var(--slate-900)',
                 border: '1px solid var(--border-default)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: '16px',
+                marginBottom: '14px',
                 boxShadow: 'var(--shadow-sm)'
               }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--slate-500)' }}>
                   <circle cx="9" cy="21" r="1"></circle>
                   <circle cx="20" cy="21" r="1"></circle>
                   <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                 </svg>
               </div>
 
-              <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--slate-200)', marginBottom: '4px' }}>
                 Cart is Empty
               </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '340px', lineHeight: 1.5, marginBottom: '20px' }}>
-                Scan a barcode using your handheld scanner, press <strong>⌘K</strong> to simulate a scan, or test with common items:
+              <p style={{ fontSize: '12.5px', color: 'var(--slate-500)', textAlign: 'center', maxWidth: '340px', lineHeight: 1.4, marginBottom: '18px' }}>
+                Scan a barcode using your handheld scanner, press <kbd className="kbd-badge">⌘K</kbd> to simulate, or click a sample item:
               </p>
 
-              {/* Refined Minimalist Test Chips */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button
                   onClick={() => handleBarcodeScanned('8901000000101')}
-                  style={{
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-default)',
-                    color: 'var(--text-secondary)',
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '12px',
-                    fontWeight: 500
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--emerald-500)';
-                    e.currentTarget.style.color = 'var(--text-primary)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'var(--border-default)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                  }}
+                  className="action-btn-ghost"
                 >
                   Amoxicillin 500mg (FEFO)
                 </button>
 
                 <button
                   onClick={() => handleBarcodeScanned('8901000000102')}
-                  style={{
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-default)',
-                    color: 'var(--text-secondary)',
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '12px',
-                    fontWeight: 500
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--amber-500)';
-                    e.currentTarget.style.color = 'var(--text-primary)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'var(--border-default)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                  }}
+                  className="action-btn-ghost"
                 >
-                  Paracetamol 650mg (Near Expiry)
+                  Paracetamol 650mg
                 </button>
 
                 <button
                   onClick={() => handleBarcodeScanned('8901000000001')}
-                  style={{
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-default)',
-                    color: 'var(--text-secondary)',
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '12px',
-                    fontWeight: 500
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--blue-500)';
-                    e.currentTarget.style.color = 'var(--text-primary)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'var(--border-default)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                  }}
+                  className="action-btn-ghost"
                 >
                   Retail Soda (FMCG)
                 </button>
@@ -837,19 +674,19 @@ export function App() {
                 <thead>
                   <tr>
                     <th>Item Description</th>
-                    <th>Batch & Expiry</th>
+                    <th>Batch / Expiry</th>
                     <th style={{ textAlign: 'center' }}>Qty</th>
                     <th style={{ textAlign: 'right' }}>Unit Price</th>
                     <th style={{ textAlign: 'right' }}>Line Total</th>
-                    <th style={{ textAlign: 'center', width: '40px' }}></th>
+                    <th style={{ textAlign: 'center', width: '36px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {cart.map((item) => (
                     <tr key={item.cartId}>
                       <td>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.productName}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--slate-100)' }}>{item.productName}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--slate-400)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                           SKU: {item.sku} • {item.barcode}
                         </div>
                       </td>
@@ -860,11 +697,11 @@ export function App() {
                           </span>
                           {item.isNearExpiry && (
                             <span className="pill pill-amber">
-                              Expiring in {item.daysToExpiry}d
+                              {item.daysToExpiry}d left
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--slate-400)', marginTop: '3px' }}>
                           Exp: {item.expiryDate}
                         </div>
                       </td>
@@ -886,10 +723,10 @@ export function App() {
                           </button>
                         </div>
                       </td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--slate-300)' }}>
                         ${item.unitPrice.toFixed(2)}
                       </td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--slate-50)' }}>
                         ${((item.quantity * item.unitPrice) * (1 + item.taxRate / 100)).toFixed(2)}
                       </td>
                       <td style={{ textAlign: 'center' }}>
@@ -897,12 +734,12 @@ export function App() {
                           onClick={() => removeCartItem(item.cartId)}
                           style={{
                             background: 'transparent',
-                            color: 'var(--text-muted)',
-                            fontSize: '14px',
-                            padding: '4px'
+                            color: 'var(--slate-500)',
+                            fontSize: '13px',
+                            padding: '3px'
                           }}
                           onMouseEnter={e => e.currentTarget.style.color = 'var(--rose-500)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--slate-500)'}
                           title="Remove item"
                         >
                           ✕
@@ -915,14 +752,14 @@ export function App() {
             </div>
           )}
 
-          {/* Status Toast Notification */}
+          {/* Toast Notification */}
           {statusNotification && (
             <div style={{
-              padding: '8px 16px',
+              padding: '7px 14px',
               background: statusNotification.type === 'error' ? 'var(--rose-bg)' : 'var(--emerald-bg)',
               borderTop: `1px solid ${statusNotification.type === 'error' ? 'var(--rose-border)' : 'var(--emerald-border)'}`,
-              color: statusNotification.type === 'error' ? '#FB7185' : '#34D399',
-              fontSize: '12.5px',
+              color: statusNotification.type === 'error' ? '#fb7185' : '#34d399',
+              fontSize: '12px',
               fontWeight: 500,
               display: 'flex',
               alignItems: 'center',
@@ -934,57 +771,41 @@ export function App() {
           )}
         </div>
 
-        {/* RIGHT PANE: CHECKOUT COMMAND DECK (35%) */}
-        <div style={{
-          flex: '1 1 35%',
-          background: 'var(--bg-surface)',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '20px',
-          overflowY: 'auto',
-          gap: '16px'
-        }}>
+        {/* RIGHT PANE: CHECKOUT COMMAND DECK (Clean, Modern, Slate Borders) */}
+        <div className="checkout-panel">
           {/* Summary Card */}
-          <div style={{
-            background: 'var(--bg-app)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '16px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+          <div className="summary-card">
+            <div className="summary-line">
               <span>Subtotal</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>${cartSubtotal.toFixed(2)}</span>
             </div>
 
             {cartDiscount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--rose-500)', marginBottom: '8px' }}>
+              <div className="summary-line" style={{ color: 'var(--rose-500)' }}>
                 <span>Discounts</span>
                 <span style={{ fontFamily: 'var(--font-mono)' }}>-${cartDiscount.toFixed(2)}</span>
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+            <div className="summary-line" style={{ marginBottom: 0 }}>
               <span>Tax / VAT (5%)</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>${cartTax.toFixed(2)}</span>
             </div>
 
-            <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '12px 0' }} />
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+            <div className="summary-total-due">
+              <span style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--slate-400)' }}>
                 Total Due
               </span>
-              <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>
+              <span style={{ fontSize: '24px', fontWeight: 800, color: 'var(--slate-50)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>
                 ${cartGrandTotal.toFixed(2)}
               </span>
             </div>
           </div>
 
-          {/* Clinical Prescription Link Accordion (Hospital Pharmacy Mode) */}
+          {/* Clinical Prescription Link (Hospital Pharmacy Mode) */}
           {isPharmacy && (
             <div style={{
-              background: 'var(--bg-app)',
+              background: 'var(--slate-950)',
               border: '1px solid var(--border-default)',
               borderRadius: 'var(--radius-lg)',
               overflow: 'hidden'
@@ -992,7 +813,7 @@ export function App() {
               <div
                 onClick={() => setIsClinicalOpen(!isClinicalOpen)}
                 style={{
-                  padding: '12px 14px',
+                  padding: '10px 14px',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
@@ -1001,52 +822,52 @@ export function App() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--slate-200)' }}>
                     Prescription Link
                   </span>
-                  <span className="pill pill-emerald" style={{ fontSize: '10px' }}>F4</span>
+                  <kbd className="kbd-badge">F4</kbd>
                 </div>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', transform: isClinicalOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease' }}>
+                <span style={{ fontSize: '9px', color: 'var(--slate-500)', transform: isClinicalOpen ? 'rotate(180deg)' : 'none', transition: 'transform 120ms ease' }}>
                   ▼
                 </span>
               </div>
 
               {isClinicalOpen && (
-                <div style={{ padding: '0 14px 14px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ padding: '0 12px 12px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <div>
-                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Patient MRN</label>
+                    <label style={{ fontSize: '10.5px', color: 'var(--slate-400)', display: 'block', marginBottom: '3px' }}>Patient MRN</label>
                     <input
                       type="text"
                       value={patientMrn}
                       onChange={e => setPatientMrn(e.target.value)}
-                      style={{ width: '100%', padding: '6px 10px', fontSize: '12px' }}
+                      style={{ width: '100%', padding: '5px 8px', fontSize: '11.5px' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Patient Name</label>
+                    <label style={{ fontSize: '10.5px', color: 'var(--slate-400)', display: 'block', marginBottom: '3px' }}>Patient Name</label>
                     <input
                       type="text"
                       value={patientName}
                       onChange={e => setPatientName(e.target.value)}
-                      style={{ width: '100%', padding: '6px 10px', fontSize: '12px' }}
+                      style={{ width: '100%', padding: '5px 8px', fontSize: '11.5px' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Doctor License</label>
+                    <label style={{ fontSize: '10.5px', color: 'var(--slate-400)', display: 'block', marginBottom: '3px' }}>Doctor License</label>
                     <input
                       type="text"
                       value={doctorLicense}
                       onChange={e => setDoctorLicense(e.target.value)}
-                      style={{ width: '100%', padding: '6px 10px', fontSize: '12px' }}
+                      style={{ width: '100%', padding: '5px 8px', fontSize: '11.5px' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Rx Number</label>
+                    <label style={{ fontSize: '10.5px', color: 'var(--slate-400)', display: 'block', marginBottom: '3px' }}>Rx Number</label>
                     <input
                       type="text"
                       value={prescriptionNumber}
                       onChange={e => setPrescriptionNumber(e.target.value)}
-                      style={{ width: '100%', padding: '6px 10px', fontSize: '12px' }}
+                      style={{ width: '100%', padding: '5px 8px', fontSize: '11.5px' }}
                     />
                   </div>
                 </div>
@@ -1054,9 +875,9 @@ export function App() {
             </div>
           )}
 
-          {/* Payment Method Segmented Control */}
+          {/* Payment Method Tabs */}
           <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--slate-400)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
               Payment Method
             </label>
             <div className="segmented-control">
@@ -1084,13 +905,13 @@ export function App() {
           {/* Cash Tendered & Quick Bills */}
           {paymentMethod === 'CASH' && (
             <div style={{
-              background: 'var(--bg-app)',
+              background: 'var(--slate-950)',
               border: '1px solid var(--border-default)',
               borderRadius: 'var(--radius-lg)',
-              padding: '14px'
+              padding: '12px 14px'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>CASH TENDERED</span>
+                <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--slate-400)' }}>CASH TENDERED</span>
                 {changeDue > 0 && isFinite(changeDue) && changeDue <= 100000 && (
                   <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--emerald-500)', fontFamily: 'var(--font-mono)' }}>
                     Change: ${changeDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1119,44 +940,34 @@ export function App() {
                 }}
                 style={{
                   width: '100%',
-                  fontSize: '16px',
+                  fontSize: '15px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
-                  marginBottom: '10px'
+                  marginBottom: '8px',
+                  padding: '7px 10px'
                 }}
               />
 
-              {/* Clean Quick Chips */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
                 {[20, 50, 100].map(amt => (
                   <button
                     key={amt}
                     onClick={() => setTenderedAmount(amt.toString())}
-                    style={{
-                      background: 'var(--bg-surface)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-secondary)',
-                      padding: '5px 0',
-                      borderRadius: 'var(--radius-xs)',
-                      fontSize: '11.5px',
-                      fontWeight: 600
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--text-muted)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-default)'}
+                    className="action-btn-ghost"
+                    style={{ padding: '4px 0', justifyContent: 'center', fontSize: '11px' }}
                   >
                     ${amt}
                   </button>
                 ))}
                 <button
                   onClick={() => setTenderedAmount(cartGrandTotal.toFixed(2))}
+                  className="action-btn-ghost"
                   style={{
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--emerald-border)',
-                    color: 'var(--emerald-500)',
-                    padding: '5px 0',
-                    borderRadius: 'var(--radius-xs)',
-                    fontSize: '11.5px',
-                    fontWeight: 600
+                    padding: '4px 0',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    borderColor: 'var(--emerald-border)',
+                    color: 'var(--emerald-500)'
                   }}
                 >
                   Exact
@@ -1165,42 +976,15 @@ export function App() {
             </div>
           )}
 
-          {/* Large Primary Action Button */}
+          {/* Primary Action Button (Subtle Emerald Green) */}
           <button
             onClick={handleCheckoutSubmit}
             disabled={cart.length === 0}
-            style={{
-              marginTop: 'auto',
-              width: '100%',
-              background: cart.length > 0 ? 'var(--emerald-600)' : 'var(--bg-surface-elevated)',
-              color: cart.length > 0 ? '#FFFFFF' : 'var(--text-muted)',
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: 700,
-              fontSize: '14px',
-              letterSpacing: '0.02em',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              boxShadow: cart.length > 0 ? 'var(--shadow-glow)' : 'none',
-              cursor: cart.length > 0 ? 'pointer' : 'not-allowed'
-            }}
-            onMouseEnter={e => {
-              if (cart.length > 0) e.currentTarget.style.background = 'var(--emerald-500)';
-            }}
-            onMouseLeave={e => {
-              if (cart.length > 0) e.currentTarget.style.background = 'var(--emerald-600)';
-            }}
+            className="checkout-btn-primary"
+            style={{ marginTop: 'auto' }}
           >
             <span>COMPLETE CHECKOUT</span>
-            <kbd style={{
-              background: 'rgba(0, 0, 0, 0.25)',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)'
-            }}>
+            <kbd className="kbd-badge" style={{ background: 'rgba(0, 0, 0, 0.25)', borderColor: 'rgba(255, 255, 255, 0.2)', color: '#ffffff' }}>
               F12
             </kbd>
           </button>
