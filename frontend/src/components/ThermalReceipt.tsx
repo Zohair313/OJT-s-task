@@ -1,293 +1,332 @@
 import React, { useState } from 'react';
 import { BarcodeSvg } from './BarcodeSvg';
-
-interface InvoiceItem {
-  id: string;
-  productName: string;
-  batchNumber: string;
-  expiryDate: string;
-  quantity: number;
-  unitPrice: number;
-  taxAmount: number;
-  discountAmount: number;
-  lineTotal: number;
-}
+import {
+  formatCurrency,
+  generateEscPosText
+} from '../utils/thermalReceiptUtil';
+import type {
+  ReceiptInvoice,
+  ReceiptStore
+} from '../utils/thermalReceiptUtil';
+import {
+  Printer,
+  X,
+  FileText,
+  Copy,
+  Check,
+  CheckCircle2
+} from 'lucide-react';
 
 interface ThermalReceiptProps {
-  invoice: {
-    invoiceNumber: string;
-    createdAt: string;
-    cashierId?: string;
-    patientId?: string;
-    patientName?: string;
-    doctorLicense?: string;
-    prescriptionNumber?: string;
-    subtotal: number;
-    discountAmount: number;
-    taxAmount: number;
-    roundOff: number;
-    grandTotal: number;
-    paymentMethod: string;
-    tenderedAmount: number;
-    changeDue: number;
-    items: InvoiceItem[];
-  };
-  store: {
-    name: string;
-    taxIdentifier: string;
-    address: string;
-    phone: string;
-    isPharmacy: boolean;
-  };
-  format: '80mm' | '58mm';
+  invoice: ReceiptInvoice;
+  store: ReceiptStore;
+  format?: '80mm' | '58mm';
   onClose: () => void;
 }
 
 export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
   invoice,
   store,
-  format,
+  format = '80mm',
   onClose
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<'80mm' | '58mm'>(format);
+  const [activeTab, setActiveTab] = useState<'preview' | 'escpos'>('preview');
+  const [copied, setCopied] = useState(false);
+
   const is58mm = selectedFormat === '58mm';
 
-  const formatCurrency = (amount: number | string | undefined | null): string => {
-    if (amount === undefined || amount === null) return '$0.00';
-    const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
-    if (isNaN(num) || !isFinite(num)) return '$0.00';
-    if (Math.abs(num) > 10000000) {
-      return '$' + (10000000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
+  // Inject dynamic @page size into document during print
   const handlePrint = () => {
+    const styleId = 'dynamic-thermal-print-page-style';
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+    styleEl.innerHTML = `@page { size: ${selectedFormat} auto; margin: 0mm; }`;
+
     window.print();
   };
 
+  const handleCopyEscPos = () => {
+    const text = generateEscPosText(invoice, store, selectedFormat);
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const invoiceTime = new Date(invoice.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const invoiceDate = new Date(invoice.createdAt).toLocaleDateString();
+
   return (
-    <div className="modal-overlay" style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="modal-content" style={{ maxWidth: '440px', width: '100%', padding: '16px', background: 'var(--bg-surface)', maxHeight: '92vh', overflowY: 'auto' }}>
+    <div className="modal-overlay select-none">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full max-h-[92vh] flex flex-col shadow-2xl text-slate-100 overflow-hidden">
         
-        {/* Header Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '18px' }}>🖨️</span>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Thermal Receipt ({selectedFormat.toUpperCase()})
-            </h3>
-          </div>
-          
-          {/* Format Toggle Pill */}
-          <div style={{ display: 'flex', background: 'var(--bg-input)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xs)', padding: '2px', gap: '2px' }}>
-            <button
-              onClick={() => setSelectedFormat('80mm')}
-              style={{
-                padding: '3px 8px',
-                fontSize: '11px',
-                fontWeight: 600,
-                borderRadius: '3px',
-                background: selectedFormat === '80mm' ? 'var(--emerald-500)' : 'transparent',
-                color: selectedFormat === '80mm' ? '#0B0F19' : 'var(--text-secondary)'
-              }}
-            >
-              80mm
-            </button>
-            <button
-              onClick={() => setSelectedFormat('58mm')}
-              style={{
-                padding: '3px 8px',
-                fontSize: '11px',
-                fontWeight: 600,
-                borderRadius: '3px',
-                background: selectedFormat === '58mm' ? 'var(--emerald-500)' : 'transparent',
-                color: selectedFormat === '58mm' ? '#0B0F19' : 'var(--text-secondary)'
-              }}
-            >
-              58mm
-            </button>
-          </div>
-
-          <button
-            onClick={onClose}
-            style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '16px', padding: '4px' }}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <button
-            onClick={handlePrint}
-            style={{
-              flex: 1,
-              background: 'var(--emerald-500)',
-              color: '#0B0F19',
-              padding: '8px',
-              borderRadius: 'var(--radius-sm)',
-              fontWeight: 700,
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            <span>🖨️</span> Print Receipt
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-              padding: '8px 14px',
-              fontSize: '12px',
-              fontWeight: 600,
-              borderRadius: 'var(--radius-sm)'
-            }}
-          >
-            Close
-          </button>
-        </div>
-
-        {/* Snug Authentic Thermal Paper Container */}
-        <div
-          id="printable-thermal-receipt"
-          className={`thermal-paper ${is58mm ? 'thermal-paper-58mm' : 'thermal-paper-80mm'}`}
-          style={{
-            margin: '0 auto',
-            borderRadius: '4px',
-            padding: is58mm ? '12px 10px 14px 10px' : '14px 14px 16px 14px',
-            boxShadow: '0 4px 18px rgba(0,0,0,0.45)',
-            background: '#FFFFFF',
-            color: '#000000',
-            width: is58mm ? '280px' : '350px',
-            maxWidth: '100%',
-            boxSizing: 'border-box'
-          }}
-        >
-          {/* Store Header */}
-          <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-            <div style={{ fontWeight: 800, fontSize: is58mm ? '12px' : '14px', lineHeight: 1.2 }}>{store.name}</div>
-            <div style={{ fontSize: '8.5px', color: '#333', marginTop: '2px' }}>{store.address}</div>
-            <div style={{ fontSize: '8.5px', color: '#333' }}>Tel: {store.phone}</div>
-            <div style={{ fontSize: '8.5px', fontWeight: 600, marginTop: '1px' }}>
-              TAX REG / NTN: {store.taxIdentifier}
+        {/* 1. Modal Top Bar */}
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between shrink-0 bg-slate-950/80">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-950/80 border border-emerald-900/60 flex items-center justify-center text-emerald-400">
+              <Printer className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-100">
+                  Thermal Tax Invoice Receipt
+                </h3>
+                <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-900/50 text-[10px] font-mono font-bold text-emerald-400">
+                  #{invoice.invoiceNumber}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                {store.name} • {selectedFormat.toUpperCase()} Emulation
+              </div>
             </div>
           </div>
 
-          <div className="thermal-dashed" style={{ margin: '4px 0' }} />
+          <div className="flex items-center gap-2">
+            {/* 80mm / 58mm Format Toggle */}
+            <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => setSelectedFormat('80mm')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+                  selectedFormat === '80mm'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                80mm
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedFormat('58mm')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+                  selectedFormat === '58mm'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                58mm
+              </button>
+            </div>
 
-          {/* Invoice Meta */}
-          <div style={{ fontSize: '9px', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Invoice: #{invoice.invoiceNumber}</span>
-            <span>{new Date(invoice.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition"
+              title="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <div style={{ fontSize: '8.5px', color: '#444' }}>
-            Date: {new Date(invoice.createdAt).toLocaleDateString()} | Cashier: Sarah J.
+        </div>
+
+        {/* 2. Mode Tabs & Action Toolbar */}
+        <div className="px-4 py-3 bg-slate-900/60 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveTab('preview')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                activeTab === 'preview'
+                  ? 'bg-slate-800 text-emerald-400 border border-slate-700'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Paper Preview</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('escpos')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                activeTab === 'escpos'
+                  ? 'bg-slate-800 text-emerald-400 border border-slate-700'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
+              }`}
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span>Raw ESC/POS</span>
+            </button>
           </div>
 
-          {/* Clinical Hospital Block if Pharmacy */}
-          {store.isPharmacy && (invoice.patientId || invoice.doctorLicense) && (
-            <div style={{
-              border: '1px solid #000',
-              padding: '3px 4px',
-              margin: '4px 0',
-              fontSize: '8px',
-              background: '#FAFAFA'
-            }}>
-              <div style={{ fontWeight: 700 }}>CLINICAL PRESCRIPTION DATA:</div>
-              {invoice.patientName && <div>Patient: {invoice.patientName} (MRN: {invoice.patientId})</div>}
-              {invoice.doctorLicense && <div>Physician: {invoice.doctorLicense}</div>}
-              {invoice.prescriptionNumber && <div>Rx #: {invoice.prescriptionNumber}</div>}
+          <div className="flex items-center gap-2">
+            {activeTab === 'escpos' ? (
+              <button
+                onClick={handleCopyEscPos}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 rounded-lg transition shadow-sm"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied ? 'Copied to Clipboard!' : 'Copy ESC/POS'}</span>
+              </button>
+            ) : null}
+
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Receipt</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3. Modal Body: Interactive Preview */}
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-950 flex justify-center items-start">
+          {activeTab === 'escpos' ? (
+            /* Raw Monospace ESC/POS Stream View */
+            <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-4 font-mono text-[11px] leading-relaxed text-emerald-300 overflow-x-auto whitespace-pre selection:bg-emerald-500 selection:text-black">
+              {generateEscPosText(invoice, store, selectedFormat)}
+            </div>
+          ) : (
+            /* Authentic Thermal Paper Container */
+            <div
+              id="printable-thermal-receipt"
+              className={`thermal-paper ${is58mm ? 'thermal-paper-58mm' : 'thermal-paper-80mm'} rounded`}
+            >
+              {/* Store Header */}
+              <div className="text-center">
+                <div className="font-extrabold text-[13px] tracking-tight">{store.name.toUpperCase()}</div>
+                <div className="text-[9px] text-gray-700 mt-0.5">{store.address}</div>
+                <div className="text-[9px] text-gray-700">Tel: {store.phone}</div>
+                <div className="text-[9px] font-bold text-gray-900 mt-1">
+                  TAX REG / NTN: {store.taxIdentifier}
+                </div>
+              </div>
+
+              <div className="thermal-dashed" />
+
+              {/* Invoice Meta */}
+              <div className="flex justify-between text-[9.5px] font-semibold">
+                <span>INVOICE #{invoice.invoiceNumber}</span>
+                <span>{invoiceTime}</span>
+              </div>
+              <div className="flex justify-between text-[8.5px] text-gray-600 mt-0.5">
+                <span>DATE: {invoiceDate}</span>
+                <span>CASHIER: {invoice.cashierId || 'REG-01'}</span>
+              </div>
+
+              {/* Clinical Hospital Block if Pharmacy */}
+              {store.isPharmacy && (invoice.patientId || invoice.doctorLicense || invoice.prescriptionNumber) && (
+                <div className="border border-black p-2 my-2 bg-gray-50 text-[8.5px] rounded-sm">
+                  <div className="font-bold border-b border-black/40 pb-0.5 mb-1 flex items-center justify-between">
+                    <span>CLINICAL PRESCRIPTION RECORD</span>
+                    <span className="text-[7.5px] font-normal uppercase">Rx VALIDATED</span>
+                  </div>
+                  {invoice.patientName && (
+                    <div><b>Patient:</b> {invoice.patientName} (MRN: {invoice.patientId || 'N/A'})</div>
+                  )}
+                  {invoice.doctorLicense && (
+                    <div><b>Doctor Lic:</b> {invoice.doctorLicense}</div>
+                  )}
+                  {invoice.prescriptionNumber && (
+                    <div><b>Prescription #:</b> {invoice.prescriptionNumber}</div>
+                  )}
+                </div>
+              )}
+
+              <div className="thermal-dashed" />
+
+              {/* Line Items Table */}
+              <table className="w-full text-left border-collapse text-[9.5px]">
+                <thead>
+                  <tr className="border-b border-black text-[9px] uppercase tracking-wider">
+                    <th className="pb-1 text-left w-[46%]">Item / Batch</th>
+                    <th className="pb-1 text-center w-[12%]">Qty</th>
+                    <th className="pb-1 text-right w-[20%]">Price</th>
+                    <th className="pb-1 text-right w-[22%]">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-300">
+                  {invoice.items.map((item, idx) => (
+                    <tr key={idx} className="align-top">
+                      <td className="py-1 pr-1">
+                        <div className="font-semibold leading-tight">{item.productName}</div>
+                        {item.batchNumber && (
+                          <div className="text-[7.5px] text-gray-600 mt-0.5">
+                            Lot: {item.batchNumber} | Exp: {item.expiryDate || 'N/A'}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-1 text-center">{item.quantity}</td>
+                      <td className="py-1 text-right">{formatCurrency(item.unitPrice)}</td>
+                      <td className="py-1 text-right font-bold">{formatCurrency(item.lineTotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="thermal-dashed" />
+
+              {/* Financial Totals Summary */}
+              <div className="text-[9.5px] space-y-1">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>{formatCurrency(invoice.subtotal)}</span>
+                </div>
+                {invoice.discountAmount > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Discounts:</span>
+                    <span>-{formatCurrency(invoice.discountAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>Tax / VAT:</span>
+                  <span>{formatCurrency(invoice.taxAmount)}</span>
+                </div>
+
+                <div className="thermal-double-dashed my-1.5" />
+
+                <div className="flex justify-between text-[13px] font-extrabold tracking-tight">
+                  <span>GRAND TOTAL:</span>
+                  <span>{formatCurrency(invoice.grandTotal)}</span>
+                </div>
+
+                <div className="thermal-double-dashed my-1.5" />
+
+                <div className="flex justify-between text-[8.5px]">
+                  <span>Payment ({invoice.paymentMethod}):</span>
+                  <span>{formatCurrency(invoice.tenderedAmount)}</span>
+                </div>
+                <div className="flex justify-between text-[8.5px] font-bold">
+                  <span>Change Due:</span>
+                  <span>{formatCurrency(invoice.changeDue)}</span>
+                </div>
+              </div>
+
+              <div className="thermal-dashed" />
+
+              {/* Thermal Barcode & Legal Disclaimer */}
+              <div className="text-center pt-1">
+                <BarcodeSvg
+                  value={invoice.invoiceNumber.replace(/[^0-9]/g, '').slice(-12) || '890100000001'}
+                  width={is58mm ? 150 : 200}
+                  height={32}
+                />
+                <div className="text-[8px] text-gray-600 font-bold mt-1">
+                  INV: #{invoice.invoiceNumber}
+                </div>
+                <div className="text-[7.5px] text-gray-500 mt-0.5 leading-tight">
+                  Thank you for your visit! Goods once sold are returnable within 7 days with original receipt.
+                </div>
+              </div>
             </div>
           )}
+        </div>
 
-          <div className="thermal-dashed" style={{ margin: '4px 0' }} />
-
-          {/* Line Items Table with Dedicated Column Widths & Spacing */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: is58mm ? '8.5px' : '9.5px', tableLayout: 'fixed' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #000' }}>
-                <th style={{ textAlign: 'left', paddingBottom: '3px', width: '42%' }}>ITEM / BATCH</th>
-                <th style={{ textAlign: 'center', paddingBottom: '3px', width: '11%' }}>QTY</th>
-                <th style={{ textAlign: 'right', paddingBottom: '3px', width: '23%', paddingRight: '8px' }}>PRICE</th>
-                <th style={{ textAlign: 'right', paddingBottom: '3px', width: '24%' }}>TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.items.map((item, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px dotted #CCC' }}>
-                  <td style={{ padding: '3px 4px 3px 0', wordBreak: 'break-word' }}>
-                    <div style={{ fontWeight: 600, lineHeight: 1.2 }}>{item.productName}</div>
-                    <div style={{ fontSize: '7.5px', color: '#555', marginTop: '1px' }}>
-                      Lot: {item.batchNumber} | Exp: {item.expiryDate}
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'center', padding: '3px 0', verticalAlign: 'top' }}>{item.quantity}</td>
-                  <td style={{ textAlign: 'right', padding: '3px 8px 3px 0', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
-                    {formatCurrency(item.unitPrice)}
-                  </td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, padding: '3px 0', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
-                    {formatCurrency(item.lineTotal)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="thermal-dashed" style={{ margin: '4px 0' }} />
-
-          {/* Totals Summary */}
-          <div style={{ fontSize: is58mm ? '9px' : '10px', lineHeight: 1.35 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Subtotal:</span>
-              <span>{formatCurrency(invoice.subtotal)}</span>
-            </div>
-            {invoice.discountAmount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#C00' }}>
-                <span>Discount:</span>
-                <span>-{formatCurrency(invoice.discountAmount)}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Tax / VAT:</span>
-              <span>{formatCurrency(invoice.taxAmount)}</span>
-            </div>
-            <div className="thermal-dashed" style={{ margin: '3px 0' }} />
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontWeight: 800,
-              fontSize: is58mm ? '11.5px' : '13px',
-              margin: '2px 0'
-            }}>
-              <span>GRAND TOTAL:</span>
-              <span>{formatCurrency(invoice.grandTotal)}</span>
-            </div>
-            <div className="thermal-dashed" style={{ margin: '3px 0' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px' }}>
-              <span>Payment ({invoice.paymentMethod}):</span>
-              <span>{formatCurrency(invoice.tenderedAmount)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8.5px', fontWeight: 600 }}>
-              <span>Change Due:</span>
-              <span>{formatCurrency(invoice.changeDue)}</span>
-            </div>
+        {/* 4. Footer Dismissal Bar */}
+        <div className="p-3 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400 shrink-0">
+          <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Fiscal Receipt Generated Successfully</span>
           </div>
 
-          <div className="thermal-dashed" style={{ margin: '4px 0' }} />
-
-          {/* Footer Barcode */}
-          <div style={{ textAlign: 'center', margin: '4px 0 2px 0' }}>
-            <BarcodeSvg value={invoice.invoiceNumber.replace(/[^0-9]/g, '').slice(-12) || '890100000001'} width={is58mm ? 140 : 180} height={32} />
-            <div style={{ fontSize: '7.5px', color: '#555', marginTop: '2px' }}>
-              Thank you for your visit! Goods once sold are returnable within 7 days.
-            </div>
-          </div>
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg transition"
+          >
+            Done (Close)
+          </button>
         </div>
       </div>
     </div>
