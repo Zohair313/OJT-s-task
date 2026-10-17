@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarcodeSvg } from './BarcodeSvg';
+import { ThemeToggle } from './ThemeToggle';
 import {
   Package,
   AlertTriangle,
@@ -433,14 +434,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   );
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-50 text-slate-900 select-none">
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 select-none">
       
       {/* Toast Alert */}
       {toast && (
         <div className={`fixed top-5 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-xs font-semibold border animate-in fade-in slide-in-from-top-3 ${
           toast.type === 'success'
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-            : 'bg-rose-50 border-rose-200 text-rose-800'
+            ? 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+            : 'bg-rose-50 dark:bg-rose-950/80 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'
         }`}>
           <span>{toast.type === 'success' ? '✓' : '⚠️'}</span>
           <span>{toast.text}</span>
@@ -448,50 +449,53 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* 1. TOP NAVBAR */}
-      <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0 z-20 shadow-xs">
+      <header className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 flex items-center justify-between shrink-0 z-20 shadow-xs">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold shadow-xs">
               <Building2 className="w-4 h-4" />
             </div>
-            <span className="font-bold text-base tracking-tight text-slate-900">PulsePOS</span>
+            <span className="font-bold text-base tracking-tight text-slate-900 dark:text-slate-100">PulsePOS</span>
           </div>
 
           {/* Navigation Switcher */}
-          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-1 gap-1">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 gap-1">
             <button
               onClick={onBackToPos}
-              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:text-slate-900 transition"
+              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition"
             >
-              <ShoppingCart className="w-3.5 h-3.5 text-slate-500" />
+              <ShoppingCart className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               <span>POS Counter</span>
             </button>
             <button
-              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-white text-slate-900 shadow-xs border border-slate-200/80 transition"
+              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-600 transition"
             >
-              <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+              <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Product Admin</span>
             </button>
           </div>
 
-          <div className="h-5 w-px bg-slate-200" />
+          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800" />
 
           {/* Page Title */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-bold text-slate-800">Catalog Management</span>
-            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-mono text-[11px] border border-slate-200">/admin</span>
+            <span className="font-bold text-slate-800 dark:text-slate-200">Catalog Management</span>
+            <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[11px] border border-slate-200 dark:border-slate-700">/admin</span>
           </div>
         </div>
 
         {/* Right Actions */}
         <div className="flex items-center gap-3">
+          {/* Theme Toggle (Light / Dark) */}
+          <ThemeToggle />
+
           {/* Database Info */}
           <button
             onClick={() => setIsDbHelpOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 text-xs font-medium border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 rounded-lg transition shadow-xs"
+            className="flex items-center gap-2 px-3 py-2 text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg transition shadow-xs"
             title="Database Connection & Credentials"
           >
-            <Database className="w-3.5 h-3.5 text-emerald-600" />
+            <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>DB Credentials</span>
           </button>
 
@@ -500,7 +504,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <select
               value={tenantId}
               onChange={e => onTenantChange(e.target.value)}
-              className="appearance-none bg-white border border-slate-200 rounded-lg px-3.5 py-2 pr-8 text-xs font-medium text-slate-700 hover:border-slate-300 cursor-pointer focus:outline-none focus:border-emerald-500 transition shadow-xs"
+              className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 py-2 pr-8 text-xs font-medium text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer focus:outline-none focus:border-emerald-500 transition shadow-xs"
             >
               <option value="t-retail-001">Metro Supermarket Flagship</option>
               <option value="t-pharma-002">City Hospital Outpatient Pharmacy</option>
@@ -522,7 +526,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <button
             onClick={loadData}
             title="Refresh Catalog Data"
-            className="p-2 border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-600 hover:text-slate-900 rounded-lg transition shadow-xs"
+            className="p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-lg transition shadow-xs"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
           </button>
@@ -534,77 +538,77 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         
         {/* KPI Metric Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
-          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between shadow-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-xs">
             <div>
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Total Products
               </div>
-              <div className="text-3xl font-extrabold font-mono text-slate-900 mt-1.5">
+              <div className="text-3xl font-extrabold font-mono text-slate-900 dark:text-slate-100 mt-1.5">
                 {totalCount}
               </div>
-              <div className="text-xs text-slate-400 mt-1">Active SKU catalog</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500 mt-1">Active SKU catalog</div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-xs">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-xs">
               <Package className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between shadow-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-xs">
             <div>
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Low Stock (≤ ROP)
               </div>
-              <div className={`text-3xl font-extrabold font-mono mt-1.5 ${lowStockCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+              <div className={`text-3xl font-extrabold font-mono mt-1.5 ${lowStockCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100'}`}>
                 {lowStockCount}
               </div>
-              <div className="text-xs text-slate-400 mt-1">Needs reorder replenishment</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500 mt-1">Needs reorder replenishment</div>
             </div>
             <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shadow-xs ${
               lowStockCount > 0 
-                ? 'bg-amber-50 border-amber-200 text-amber-600' 
-                : 'bg-slate-100 border-slate-200 text-slate-400'
+                ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400' 
+                : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'
             }`}>
               <AlertTriangle className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between shadow-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-xs">
             <div>
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Out of Stock
               </div>
-              <div className={`text-3xl font-extrabold font-mono mt-1.5 ${outOfStockCount > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+              <div className={`text-3xl font-extrabold font-mono mt-1.5 ${outOfStockCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
                 {outOfStockCount}
               </div>
-              <div className="text-xs text-slate-400 mt-1">Zero inventory units remaining</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500 mt-1">Zero inventory units remaining</div>
             </div>
             <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shadow-xs ${
               outOfStockCount > 0 
-                ? 'bg-rose-50 border-rose-200 text-rose-600' 
-                : 'bg-slate-100 border-slate-200 text-slate-400'
+                ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400' 
+                : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'
             }`}>
               <Ban className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between shadow-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-xs">
             <div>
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Categories
               </div>
-              <div className="text-3xl font-extrabold font-mono text-slate-900 mt-1.5">
+              <div className="text-3xl font-extrabold font-mono text-slate-900 dark:text-slate-100 mt-1.5">
                 {categories.length}
               </div>
-              <div className="text-xs text-slate-400 mt-1">Active merchandise classes</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500 mt-1">Active merchandise classes</div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-xs">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-xs">
               <Tag className="w-6 h-6" />
             </div>
           </div>
         </div>
 
         {/* Filter & Live Search Toolbar */}
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-xs">
           {/* Live Search Input */}
           <div className="relative flex-1 min-w-[340px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -616,7 +620,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full h-11 pl-11 pr-10 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-emerald-500 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none transition shadow-xs"
+              className="w-full h-11 pl-11 pr-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition shadow-xs"
             />
             {searchQuery && (
               <button
@@ -624,7 +628,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   setSearchQuery('');
                   setCurrentPage(1);
                 }}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-1"
               >
                 ✕
               </button>
@@ -640,7 +644,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   setSelectedCategory(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="appearance-none h-11 bg-white border border-slate-200 rounded-lg px-4 pr-9 text-xs font-medium text-slate-700 hover:border-slate-300 cursor-pointer focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                className="appearance-none h-11 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 pr-9 text-xs font-medium text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer focus:outline-none focus:border-emerald-500 transition shadow-xs"
               >
                 <option value="ALL">All Categories ({categories.length})</option>
                 {categories.map(c => (
@@ -651,7 +655,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             {/* Stock Filter Pills */}
-            <div className="flex bg-slate-100 border border-slate-200 rounded-lg p-1 gap-1">
+            <div className="flex bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 gap-1">
               {(['ALL', 'IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'] as const).map(filter => (
                 <button
                   key={filter}
@@ -661,8 +665,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   }}
                   className={`h-9 px-3.5 text-xs font-semibold rounded-md transition ${
                     stockFilter === filter
-                      ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-600'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   {filter === 'ALL' && 'All'}
@@ -676,19 +680,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
 
         {/* 3. FULL-WIDTH ENTERPRISE DATA TABLE */}
-        <div className="flex-1 bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-xs">
+        <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-xs">
           {loading ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
-              <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500 dark:text-slate-400">
+              <RefreshCw className="w-6 h-6 animate-spin text-emerald-600 dark:text-emerald-400" />
               <span className="text-xs font-medium">Loading enterprise product catalog...</span>
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mb-3 text-slate-400">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-3 text-slate-400">
                 <Search className="w-6 h-6" />
               </div>
-              <div className="text-sm font-bold text-slate-900 mb-1">No products match your search or filters</div>
-              <p className="text-xs text-slate-500 max-w-sm mb-4">
+              <div className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">No products match your search or filters</div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-4">
                 Try searching with a different SKU, barcode, generic name, or clear your active filters.
               </p>
               <button
@@ -698,7 +702,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   setStockFilter('ALL');
                   setCurrentPage(1);
                 }}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition"
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition"
               >
                 Reset All Filters
               </button>
@@ -706,7 +710,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           ) : (
             <div className="flex-1 overflow-x-auto overflow-y-auto">
               <table className="w-full min-w-[1200px] text-left border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wider sticky top-0 z-10">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider sticky top-0 z-10">
                   <tr>
                     <th className="py-3.5 px-6 w-[28%]">Product Information</th>
                     <th className="py-3.5 px-6 w-[18%]">SKU & Barcode</th>
@@ -718,7 +722,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <th className="py-3.5 px-6 text-center w-[12%]">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {paginatedProducts.map(p => {
                     const stock = p.totalStock ?? 0;
                     const rop = p.reorderPoint ?? 10;
@@ -734,28 +738,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         key={p.id} 
                         className={`transition group ${
                           p.id === highlightedProductId 
-                            ? 'bg-emerald-50/70 border-l-4 border-l-emerald-500 ring-1 ring-emerald-400/50' 
-                            : 'hover:bg-slate-50/80'
+                            ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-l-4 border-l-emerald-500 ring-1 ring-emerald-400/50' 
+                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
                         }`}
                       >
                         {/* 1. Product Details */}
                         <td className="py-4 px-6">
-                          <div className="font-semibold text-slate-900 text-sm leading-snug group-hover:text-emerald-900 transition">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-snug group-hover:text-emerald-900 dark:group-hover:text-emerald-400 transition">
                             {p.name}
                           </div>
                           <div className="flex items-center gap-2 flex-wrap mt-1.5">
                             {p.genericName && (
-                              <span className="text-xs text-slate-500 italic">
+                              <span className="text-xs text-slate-500 dark:text-slate-400 italic">
                                 {p.genericName}
                               </span>
                             )}
                             {p.brand && (
-                              <span className="text-[11px] bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-0.5 rounded font-medium">
+                              <span className="text-[11px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded font-medium">
                                 {p.brand}
                               </span>
                             )}
                             {p.isPrescriptionRequired && (
-                              <span className="text-[10px] bg-rose-50 border border-rose-200 text-rose-700 px-2 py-0.5 rounded font-bold tracking-wider">
+                              <span className="text-[10px] bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded font-bold tracking-wider">
                                 Rx ONLY
                               </span>
                             )}
@@ -764,30 +768,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                         {/* 2. SKU & Barcode */}
                         <td className="py-4 px-6">
-                          <div className="font-mono text-xs text-slate-700 font-semibold">
-                            <span className="text-slate-400 mr-1.5">SKU:</span>
+                          <div className="font-mono text-xs text-slate-700 dark:text-slate-300 font-semibold">
+                            <span className="text-slate-400 dark:text-slate-500 mr-1.5">SKU:</span>
                             <span>{p.sku}</span>
                           </div>
-                          <div className="font-mono text-xs text-slate-500 mt-1 flex items-center gap-1.5">
-                            <span className="text-slate-400">BAR:</span>
+                          <div className="font-mono text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5">
+                            <span className="text-slate-400 dark:text-slate-500">BAR:</span>
                             <span>{p.barcode}</span>
                           </div>
                         </td>
 
                         {/* 3. Category */}
                         <td className="py-4 px-5">
-                          <span className="inline-flex px-3 py-1 rounded-md text-xs font-medium bg-slate-100 border border-slate-200 text-slate-700">
+                          <span className="inline-flex px-3 py-1 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                             {p.categoryName || 'General'}
                           </span>
                         </td>
 
                         {/* 4. Selling Price */}
-                        <td className="py-4 px-5 text-right font-mono text-sm font-bold text-emerald-600">
+                        <td className="py-4 px-5 text-right font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
                           ${displayPrice.toFixed(2)}
                         </td>
 
                         {/* 5. Tax Rate */}
-                        <td className="py-4 px-4 text-center font-mono text-xs text-slate-500">
+                        <td className="py-4 px-4 text-center font-mono text-xs text-slate-500 dark:text-slate-400">
                           {p.defaultTaxRate}%
                         </td>
 
@@ -795,20 +799,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <td className="py-4 px-5 text-center">
                           <span className={`inline-flex px-3 py-1 rounded-md text-xs font-mono font-semibold border ${
                             isOut
-                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800'
                               : isLow
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                              : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
                           }`}>
                             {stock} {p.unitOfMeasure}
                           </span>
                           {isLow && (
-                            <div className="text-[10px] text-amber-700 font-medium mt-1">
+                            <div className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mt-1">
                               Low (ROP {rop})
                             </div>
                           )}
                           {isOut && (
-                            <div className="text-[10px] text-rose-700 font-medium mt-1">
+                            <div className="text-[10px] text-rose-700 dark:text-rose-400 font-medium mt-1">
                               Out of Stock
                             </div>
                           )}
@@ -818,8 +822,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <td className="py-4 px-4 text-center">
                           <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider border ${
                             p.isActive
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-slate-100 text-slate-500 border-slate-200'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                           }`}>
                             {p.isActive ? 'ACTIVE' : 'INACTIVE'}
                           </span>
@@ -831,9 +835,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <button
                               onClick={() => handleOpenEdit(p)}
                               title="Edit Details, Stock & Price"
-                              className="h-8 px-3 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-emerald-500 text-xs font-semibold flex items-center gap-1.5 transition shadow-xs"
+                              className="h-8 px-3 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-400 text-xs font-semibold flex items-center gap-1.5 transition shadow-xs"
                             >
-                              <Edit2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <Edit2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                               <span>Edit</span>
                             </button>
                             
@@ -842,8 +846,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               title={p.isActive ? 'Deactivate Product' : 'Activate Product'}
                               className={`h-8 w-8 rounded-lg border flex items-center justify-center transition shadow-xs ${
                                 p.isActive
-                                  ? 'border-slate-200 bg-white text-slate-500 hover:text-amber-600 hover:border-amber-300'
-                                  : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                  ? 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-300 dark:hover:border-amber-600'
+                                  : 'border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
                               }`}
                             >
                               <Power className="w-3.5 h-3.5" />
@@ -852,7 +856,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <button
                               onClick={() => setProductToDelete(p)}
                               title="Permanently Delete Product"
-                              className="h-8 w-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 flex items-center justify-center transition shadow-xs"
+                              className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center justify-center transition shadow-xs"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -867,12 +871,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           )}
 
           {/* Table Footer with Pagination Controls */}
-          <div className="h-14 bg-slate-50/70 border-t border-slate-200 px-6 flex items-center justify-between text-xs text-slate-600 shrink-0">
+          <div className="h-14 bg-slate-50/70 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 shrink-0">
             <div className="flex items-center gap-3">
               <span>
-                Showing <b className="text-slate-800">{filteredProducts.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</b> to <b className="text-slate-800">{Math.min(currentPage * pageSize, filteredProducts.length)}</b> of <b className="text-slate-800">{filteredProducts.length}</b> products
+                Showing <b className="text-slate-800 dark:text-slate-200">{filteredProducts.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</b> to <b className="text-slate-800 dark:text-slate-200">{Math.min(currentPage * pageSize, filteredProducts.length)}</b> of <b className="text-slate-800 dark:text-slate-200">{filteredProducts.length}</b> products
               </span>
-              <div className="h-4 w-px bg-slate-200" />
+              <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
               <div className="flex items-center gap-1.5">
                 <span>Rows:</span>
                 <select
@@ -881,7 +885,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="bg-white border border-slate-200 rounded px-2 py-1 text-xs text-slate-700 focus:outline-none shadow-xs"
+                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-200 focus:outline-none shadow-xs"
                 >
                   <option value={10}>10</option>
                   <option value={15}>15</option>
@@ -897,20 +901,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition shadow-xs"
+                className="h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition shadow-xs"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>Prev</span>
               </button>
 
-              <span className="px-2 font-mono text-slate-700 font-semibold">
+              <span className="px-2 font-mono text-slate-700 dark:text-slate-300 font-semibold">
                 Page {currentPage} of {totalPages}
               </span>
 
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
-                className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition shadow-xs"
+                className="h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition shadow-xs"
               >
                 <span>Next</span>
                 <ChevronRight className="w-4 h-4" />
@@ -925,26 +929,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* ========================================================================= */}
       {editingProduct && (
         <div className="modal-overlay">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl text-slate-900">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl text-slate-900 dark:text-slate-100">
             <div className="flex justify-between items-start mb-5">
               <div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
                   Edit Product Catalog & Physical Stock
                 </h3>
-                <div className="text-xs text-slate-500 mt-1 font-mono">
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">
                   ID: {editingProduct.id.slice(0, 16)}... • Branch: {editingProduct.tenantId}
                 </div>
               </div>
               <button
                 onClick={() => setEditingProduct(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {formError && (
-              <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+              <div className="mb-4 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2">
                 <span>⚠️</span>
                 <span>{formError}</span>
               </div>
@@ -954,7 +958,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="grid grid-cols-2 gap-4 text-xs">
                 {/* Product Name */}
                 <div className="col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Product Name *
                   </label>
                   <input
@@ -962,13 +966,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={editForm.name}
                     onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-sm text-slate-900 font-semibold focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-sm text-slate-900 dark:text-slate-100 font-semibold focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* SKU */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     SKU Identifier *
                   </label>
                   <input
@@ -976,13 +980,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={editForm.sku}
                     onChange={e => setEditForm({ ...editForm, sku: e.target.value.toUpperCase() })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* Barcode */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Barcode (UPC / EAN) *
                   </label>
                   <input
@@ -990,21 +994,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={editForm.barcode}
                     onChange={e => setEditForm({ ...editForm, barcode: e.target.value.trim() })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* Live SVG Barcode Preview */}
-                <div className="col-span-2 bg-slate-50 p-3 rounded-lg flex flex-col items-center justify-center border border-slate-200">
-                  <BarcodeSvg value={editForm.barcode || '000000000000'} width={240} height={38} />
-                  <span className="text-[10px] text-slate-500 font-mono mt-1">
+                <div className="col-span-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg flex flex-col items-center justify-center border border-slate-200 dark:border-slate-700">
+                  <div className="p-2 bg-white rounded-md shadow-xs">
+                    <BarcodeSvg value={editForm.barcode || '000000000000'} width={240} height={38} />
+                  </div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-1.5">
                     Visual Barcode: {editForm.barcode}
                   </span>
                 </div>
 
                 {/* Selling Price */}
                 <div>
-                  <label className="block text-[11px] font-bold text-emerald-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1.5">
                     Selling Price ($) *
                   </label>
                   <input
@@ -1014,13 +1020,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={editForm.sellingPrice}
                     onChange={e => setEditForm({ ...editForm, sellingPrice: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
-                    className="w-full h-10 bg-slate-50 border border-emerald-300 rounded-lg px-3.5 text-sm font-bold font-mono text-emerald-700 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-lg px-3.5 text-sm font-bold font-mono text-emerald-700 dark:text-emerald-400 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* Physical Stock Adjustment */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                     Physical Inventory Stock (Units) *
                   </label>
                   <input
@@ -1030,13 +1036,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={editForm.stock}
                     onChange={e => setEditForm({ ...editForm, stock: e.target.value === '' ? ('' as any) : parseInt(e.target.value) || 0 })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-sm font-bold font-mono text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-sm font-bold font-mono text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* Tax Rate */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Tax Rate (%) *
                   </label>
                   <input
@@ -1047,13 +1053,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={editForm.defaultTaxRate}
                     onChange={e => setEditForm({ ...editForm, defaultTaxRate: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* Reorder Point */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Reorder Point (ROP)
                   </label>
                   <input
@@ -1062,13 +1068,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     max="10000"
                     value={editForm.reorderPoint}
                     onChange={e => setEditForm({ ...editForm, reorderPoint: e.target.value === '' ? ('' as any) : parseInt(e.target.value) || 10 })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* Generic Name */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Generic / Formulation
                   </label>
                   <input
@@ -1076,13 +1082,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     placeholder="e.g. Paracetamol 500mg"
                     value={editForm.genericName}
                     onChange={e => setEditForm({ ...editForm, genericName: e.target.value })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* Brand */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Brand / Manufacturer
                   </label>
                   <input
@@ -1090,19 +1096,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     placeholder="e.g. GSK, Metro Quality"
                     value={editForm.brand}
                     onChange={e => setEditForm({ ...editForm, brand: e.target.value })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* Category */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Category
                   </label>
                   <select
                     value={editForm.categoryId}
                     onChange={e => setEditForm({ ...editForm, categoryId: e.target.value })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   >
                     <option value="">General (Default Category)</option>
                     {categories.map(c => (
@@ -1113,13 +1119,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 {/* Unit of measure */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Unit of Measure
                   </label>
                   <select
                     value={editForm.unitOfMeasure}
                     onChange={e => setEditForm({ ...editForm, unitOfMeasure: e.target.value })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   >
                     {['PCS', 'PACK', 'BOTTLE', 'BOX', 'VIAL', 'STRIP'].map(u => (
                       <option key={u} value={u}>{u}</option>
@@ -1128,23 +1134,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 {/* Toggles */}
-                <div className="col-span-2 flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                <div className="col-span-2 flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
                     <input
                       type="checkbox"
                       checked={editForm.isPrescriptionRequired}
                       onChange={e => setEditForm({ ...editForm, isPrescriptionRequired: e.target.checked })}
-                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-0"
+                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 dark:border-slate-600 focus:ring-0"
                     />
                     <span>Prescription Required (Rx Only)</span>
                   </label>
 
-                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
                     <input
                       type="checkbox"
                       checked={editForm.isActive}
                       onChange={e => setEditForm({ ...editForm, isActive: e.target.checked })}
-                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-0"
+                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 dark:border-slate-600 focus:ring-0"
                     />
                     <span>Active in POS Catalog</span>
                   </label>
@@ -1152,7 +1158,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               {/* Form Action Buttons */}
-              <div className="flex justify-between items-center pt-3 border-t border-slate-200">
+              <div className="flex justify-between items-center pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => {
@@ -1160,7 +1166,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     setEditingProduct(null);
                     setProductToDelete(p);
                   }}
-                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-semibold flex items-center gap-1.5 px-3 py-2 rounded-lg transition"
+                  className="text-rose-600 hover:text-rose-700 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-xs font-semibold flex items-center gap-1.5 px-3 py-2 rounded-lg transition"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete Product</span>
@@ -1170,7 +1176,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <button
                     type="button"
                     onClick={() => setEditingProduct(null)}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition"
+                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition"
                   >
                     Cancel
                   </button>
@@ -1193,26 +1199,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* ========================================================================= */}
       {isAddModalOpen && (
         <div className="modal-overlay">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl text-slate-900">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl text-slate-900 dark:text-slate-100">
             <div className="flex justify-between items-start mb-5">
               <div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
                   Register New Product in Catalog
                 </h3>
-                <div className="text-xs text-slate-500 mt-1">
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Create new SKU with automatic initial batch inventory allocation
                 </div>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {formError && (
-              <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+              <div className="mb-4 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2">
                 <span>⚠️</span>
                 <span>{formError}</span>
               </div>
@@ -1221,7 +1227,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <form onSubmit={handleSaveAdd} className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div className="col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Product Name *
                   </label>
                   <input
@@ -1230,12 +1236,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     placeholder="e.g. Organic Almond Milk 1L"
                     value={addForm.name}
                     onChange={e => setAddForm({ ...addForm, name: e.target.value })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-sm text-slate-900 font-semibold focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-sm text-slate-900 dark:text-slate-100 font-semibold focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     SKU Identifier *
                   </label>
                   <input
@@ -1244,13 +1250,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     placeholder="e.g. RET-MILK-01"
                     value={addForm.sku}
                     onChange={e => setAddForm({ ...addForm, sku: e.target.value.toUpperCase() })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
-                    <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                    <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                       Barcode *
                     </label>
                     <button
@@ -1259,7 +1265,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         const randomBarcode = '890' + Math.floor(100000000 + Math.random() * 900000000);
                         setAddForm({ ...addForm, barcode: randomBarcode });
                       }}
-                      className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold"
+                      className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-bold"
                     >
                       🎲 Generate
                     </button>
@@ -1270,20 +1276,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     placeholder="e.g. 890100000099"
                     value={addForm.barcode}
                     onChange={e => setAddForm({ ...addForm, barcode: e.target.value.trim() })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 {/* Live SVG Barcode Preview */}
-                <div className="col-span-2 bg-slate-50 p-3 rounded-lg flex flex-col items-center justify-center border border-slate-200">
-                  <BarcodeSvg value={addForm.barcode || '890000000000'} width={240} height={38} />
-                  <span className="text-[10px] text-slate-500 font-mono mt-1">
+                <div className="col-span-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg flex flex-col items-center justify-center border border-slate-200 dark:border-slate-700">
+                  <div className="p-2 bg-white rounded-md shadow-xs">
+                    <BarcodeSvg value={addForm.barcode || '890000000000'} width={240} height={38} />
+                  </div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-1.5">
                     Visual Barcode: {addForm.barcode || 'Auto-Generated'}
                   </span>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-emerald-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1.5">
                     Initial Selling Price ($) *
                   </label>
                   <input
@@ -1293,12 +1301,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={addForm.initialPrice}
                     onChange={e => setAddForm({ ...addForm, initialPrice: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
-                    className="w-full h-10 bg-slate-50 border border-emerald-300 rounded-lg px-3.5 text-sm font-bold font-mono text-emerald-700 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-lg px-3.5 text-sm font-bold font-mono text-emerald-700 dark:text-emerald-400 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                     Initial Inventory Units *
                   </label>
                   <input
@@ -1308,18 +1316,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={addForm.initialStock}
                     onChange={e => setAddForm({ ...addForm, initialStock: e.target.value === '' ? ('' as any) : parseInt(e.target.value) || 0 })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-sm font-bold font-mono text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-sm font-bold font-mono text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Category
                   </label>
                   <select
                     value={addForm.categoryId}
                     onChange={e => setAddForm({ ...addForm, categoryId: e.target.value })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   >
                     <option value="">General (Default Category)</option>
                     {categories.map(c => (
@@ -1329,7 +1337,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Tax Rate (%)
                   </label>
                   <input
@@ -1339,28 +1347,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     max="100"
                     value={addForm.defaultTaxRate}
                     onChange={e => setAddForm({ ...addForm, defaultTaxRate: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
-                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
+                    className="w-full h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 transition shadow-xs"
                   />
                 </div>
 
-                <div className="col-span-2 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
+                <div className="col-span-2 p-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
                     <input
                       type="checkbox"
                       checked={addForm.isPrescriptionRequired}
                       onChange={e => setAddForm({ ...addForm, isPrescriptionRequired: e.target.checked })}
-                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-0"
+                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 dark:border-slate-600 focus:ring-0"
                     />
                     <span>Prescription Required (Rx Only)</span>
                   </label>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-200">
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition"
                 >
                   Cancel
                 </button>
@@ -1382,43 +1390,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* ========================================================================= */}
       {isDbHelpOpen && (
         <div className="modal-overlay">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl text-slate-900">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl text-slate-900 dark:text-slate-100">
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                   <Database className="w-4 h-4" />
                 </div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
                   PostgreSQL Database Engine
                 </h3>
               </div>
               <button
                 onClick={() => setIsDbHelpOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="text-xs leading-relaxed text-slate-600 space-y-3">
+            <div className="text-xs leading-relaxed text-slate-600 dark:text-slate-400 space-y-3">
               <p>
-                Configure your native PostgreSQL database connection in <code className="text-emerald-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-mono">backend/.env</code>:
+                Configure your native PostgreSQL database connection in <code className="text-emerald-700 dark:text-emerald-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono">backend/.env</code>:
               </p>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 font-mono text-[11px] text-slate-800 overflow-x-auto space-y-1">
-                <div className="text-slate-400"># backend/.env</div>
-                <div className="text-emerald-700 font-semibold">DATABASE_URL=postgresql://postgres:password@localhost:5432/pos_inventory_db</div>
+              <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg p-3 font-mono text-[11px] text-slate-800 dark:text-slate-200 overflow-x-auto space-y-1">
+                <div className="text-slate-400 dark:text-slate-500"># backend/.env</div>
+                <div className="text-emerald-700 dark:text-emerald-400 font-semibold">DATABASE_URL=postgresql://postgres:password@localhost:5432/pos_inventory_db</div>
                 <div>PORT=5000</div>
                 <div>NODE_ENV=development</div>
               </div>
 
-              <div className="bg-emerald-50/50 border border-emerald-200 rounded-lg p-3.5 text-xs">
-                <div className="font-bold text-emerald-800 flex items-center gap-1.5 mb-1">
+              <div className="bg-emerald-50/50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3.5 text-xs">
+                <div className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5 mb-1">
                   <span>⚡</span>
                   <span>Database Engine Status:</span>
                 </div>
-                <p className="text-slate-600 leading-normal">
-                  Current mode: <b className="text-slate-900">{dbHealthStatus}</b>. If native PostgreSQL is offline, system automatically executes transaction safety with Pessimistic Row Locking (20-thread concurrency pass).
+                <p className="text-slate-600 dark:text-slate-400 leading-normal">
+                  Current mode: <b className="text-slate-900 dark:text-slate-200">{dbHealthStatus}</b>. If native PostgreSQL is offline, system automatically executes transaction safety with Pessimistic Row Locking (20-thread concurrency pass).
                 </p>
               </div>
             </div>
@@ -1440,24 +1448,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* ========================================================================= */}
       {productToDelete && (
         <div className="modal-overlay">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl text-slate-900">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl text-slate-900 dark:text-slate-100">
             <div className="flex items-center gap-3 mb-3.5">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">Delete Product?</h3>
-                <p className="text-xs text-slate-500 font-mono">SKU: {productToDelete.sku}</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Delete Product?</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">SKU: {productToDelete.sku}</p>
               </div>
             </div>
-            <p className="text-xs text-slate-600 mb-6 leading-relaxed">
-              Are you sure you want to permanently remove <strong className="text-slate-900">"{productToDelete.name}"</strong> and its inventory from the catalog? This action cannot be undone.
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
+              Are you sure you want to permanently remove <strong className="text-slate-900 dark:text-slate-100">"{productToDelete.name}"</strong> and its inventory from the catalog? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setProductToDelete(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition"
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition"
               >
                 Cancel
               </button>
