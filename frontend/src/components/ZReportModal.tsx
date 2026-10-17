@@ -82,63 +82,75 @@ export const ZReportModal: React.FC<ZReportModalProps> = ({
   return (
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: '520px', padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#F8FAFC' }}>
-              📊 Cashier Shift Balancing & Z-Report
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>📊</span>
+              <span>Cashier Shift Balancing & Z-Report</span>
             </h3>
-            <div style={{ fontSize: '12px', color: '#94A3B8' }}>
-              Terminal: {drawer.terminalIdentifier} | Status: <span style={{ color: '#4ADE80', fontWeight: 700 }}>{drawer.status}</span>
+            <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+              <span>Terminal: <b>{drawer.terminalIdentifier}</b></span>
+              <span>•</span>
+              <span className="inline-flex px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px]">
+                {drawer.status}
+              </span>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', color: '#94A3B8', fontSize: '20px' }}>✕</button>
+          <button
+            onClick={onClose}
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+          >
+            ✕
+          </button>
         </div>
 
         {error && (
-          <div style={{ background: 'rgba(220, 38, 38, 0.2)', border: '1px solid #DC2626', color: '#FCA5A5', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px' }}>
-            ⚠️ {error}
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 px-3.5 py-2.5 rounded-lg mb-3.5 text-xs font-semibold flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
           </div>
         )}
 
         {dropSuccess && (
-          <div style={{ background: 'rgba(34, 197, 94, 0.2)', border: '1px solid #22C55E', color: '#86EFAC', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px' }}>
-            ✅ {dropSuccess}
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-3.5 py-2.5 rounded-lg mb-3.5 text-xs font-semibold flex items-center gap-2">
+            <span>✅</span>
+            <span>{dropSuccess}</span>
           </div>
         )}
 
         {/* Shift Float Summary */}
-        <div style={{ background: 'var(--color-bg)', padding: '14px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
-            <span style={{ color: '#94A3B8' }}>Opening Cash Float:</span>
-            <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>${drawer.openingFloat.toFixed(2)}</span>
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 space-y-2">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-500 font-medium">Opening Cash Float:</span>
+            <span className="font-bold font-mono text-slate-900">${drawer.openingFloat.toFixed(2)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
-            <span style={{ color: '#94A3B8' }}>Total Cash Drops to Safe:</span>
-            <span style={{ fontWeight: 700, color: '#F87171', fontFamily: 'var(--font-mono)' }}>-${drawer.totalCashDrops.toFixed(2)}</span>
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-500 font-medium">Total Cash Drops to Safe:</span>
+            <span className="font-bold font-mono text-rose-600">-${drawer.totalCashDrops.toFixed(2)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748B' }}>
+          <div className="flex justify-between items-center text-[11px] text-slate-400 pt-1 border-t border-slate-200">
             <span>Opened At:</span>
             <span>{new Date(drawer.openedAt).toLocaleTimeString()}</span>
           </div>
         </div>
 
         {/* Section A: Mid-Shift Cash Drop */}
-        <div style={{ marginBottom: '20px', borderBottom: '1px solid var(--color-border)', paddingBottom: '16px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+        <div className="mb-4 pb-4 border-b border-slate-200 space-y-2">
+          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
             Mid-Shift Cash Skim / Drop to Vault (F9)
           </label>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="flex gap-2">
             <input
               type="number"
               placeholder="Amount to drop ($)..."
               value={cashDropAmount}
               onChange={e => setCashDropAmount(e.target.value)}
-              style={{ flex: 1 }}
+              className="flex-1 h-10 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
             />
             <button
               onClick={handleCashDrop}
               disabled={loading}
-              style={{ background: 'var(--color-accent)', color: '#FFF', padding: '8px 14px', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '13px' }}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition shadow-xs disabled:opacity-50"
             >
               Record Drop
             </button>
@@ -146,49 +158,45 @@ export const ZReportModal: React.FC<ZReportModalProps> = ({
         </div>
 
         {/* Section B: End-of-Day Shift Close (Blind Count) */}
-        <div>
-          <label style={{ fontSize: '12px', fontWeight: 700, color: '#4ADE80', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-            Physical Cash Blind Count (Shift Closure)
-          </label>
-          <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '8px' }}>
-            Enter the exact cash counted in the drawer. The system will compare it against the transaction ledger to calculate variance.
-          </p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-bold text-emerald-800 uppercase tracking-wider block mb-1">
+              Physical Cash Blind Count (Shift Closure)
+            </label>
+            <p className="text-xs text-slate-500 leading-normal">
+              Enter the exact cash counted in the drawer. The system will compare it against the transaction ledger to calculate variance.
+            </p>
+          </div>
+
           <input
             type="number"
             placeholder="Counted cash ($) e.g. 750.50"
             value={actualCash}
             onChange={e => setActualCash(e.target.value)}
-            style={{ width: '100%', marginBottom: '10px', fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)' }}
+            className="w-full h-11 bg-slate-50 border border-slate-200 rounded-lg px-3.5 text-base font-bold font-mono text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+          <div className="grid grid-cols-2 gap-2">
             <input
               type="password"
               placeholder="Supervisor PIN (e.g. 9942)"
               value={supervisorPin}
               onChange={e => setSupervisorPin(e.target.value)}
+              className="h-10 bg-slate-50 border border-slate-200 rounded-lg px-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
             />
             <input
               type="text"
               placeholder="Audit note if variance..."
               value={discrepancyReason}
               onChange={e => setDiscrepancyReason(e.target.value)}
+              className="h-10 bg-slate-50 border border-slate-200 rounded-lg px-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition shadow-xs"
             />
           </div>
 
           <button
             onClick={handleCloseShift}
             disabled={loading}
-            style={{
-              width: '100%',
-              background: '#DC2626',
-              color: '#FFF',
-              padding: '12px',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: 800,
-              fontSize: '14px',
-              letterSpacing: '0.03em'
-            }}
+            className="w-full bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white py-3 px-4 rounded-xl font-bold text-xs tracking-wider transition shadow-xs disabled:opacity-50"
           >
             {loading ? 'Balancing & Locking Drawer...' : '🔒 CLOSE REGISTER & GENERATE Z-REPORT'}
           </button>

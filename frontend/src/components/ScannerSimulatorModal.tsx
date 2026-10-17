@@ -25,62 +25,57 @@ export const ScannerSimulatorModal: React.FC<ScannerSimulatorModalProps> = ({ on
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '580px', padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '24px' }}>⚡</span>
+      <div className="modal-content" style={{ maxWidth: '600px', padding: '24px' }}>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl">⚡</span>
             <div>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#F8FAFC' }}>
+              <h3 className="text-base font-bold text-slate-900">
                 Hardware Barcode Scanner Simulator
               </h3>
-              <div style={{ fontSize: '12px', color: '#94A3B8' }}>
+              <div className="text-xs text-slate-500">
                 Emulates 15ms USB/HID keyboard keystroke bursts terminating with Enter (Ctrl + K)
               </div>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', color: '#94A3B8', fontSize: '20px' }}>✕</button>
+          <button
+            onClick={onClose}
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+          >
+            ✕
+          </button>
         </div>
 
-        <p style={{ fontSize: '13px', color: '#CBD5E1', marginBottom: '16px', lineHeight: 1.4 }}>
-          Click any sample barcode below. The virtual engine will fire synthetic <code style={{ color: '#FBBF24' }}>keydown</code> events with a 15ms inter-keystroke delta directly into the global window listener, verifying zero-lag ingestion without input focus.
+        <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+          Click any sample barcode below. The virtual engine will fire synthetic <code className="font-mono bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200 font-semibold">keydown</code> events with a 15ms inter-keystroke delta directly into the global window listener, verifying zero-lag ingestion without input focus.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="flex flex-col gap-2.5">
           {sampleItems.map((item, idx) => (
             <div
               key={idx}
               onClick={() => simulateHardwareScan(item.barcode)}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '12px 14px',
-                background: 'var(--color-bg)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                cursor: 'pointer',
-                transition: 'all 150ms ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-secondary)';
-                e.currentTarget.style.background = 'var(--color-surface-hover)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-border)';
-                e.currentTarget.style.background = 'var(--color-bg)';
-              }}
+              className="flex justify-between items-center p-3.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-emerald-50/50 hover:border-emerald-300 transition shadow-xs group"
             >
               <div>
-                <div style={{ fontWeight: 700, fontSize: '14px', color: '#F8FAFC' }}>{item.name}</div>
-                <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>{item.desc}</div>
+                <div className="font-bold text-sm text-slate-900 group-hover:text-emerald-900 transition">
+                  {item.name}
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">{item.desc}</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <BarcodeSvg value={item.barcode} width={130} height={32} showText={false} />
-                <div style={{ textAlign: 'right', minWidth: '90px' }}>
-                  <span className="badge" style={{ background: item.type === 'Pharma' ? 'rgba(34,197,94,0.2)' : 'rgba(3,105,161,0.2)', color: item.type === 'Pharma' ? '#4ADE80' : '#38BDF8', marginBottom: '2px' }}>
+              <div className="flex items-center gap-3 shrink-0">
+                <BarcodeSvg value={item.barcode} width={120} height={32} showText={false} />
+                <div className="text-right min-w-[85px]">
+                  <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-md border mb-1 ${
+                    item.type === 'Pharma'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : item.type === 'Retail'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                      : 'bg-blue-50 text-blue-800 border-blue-200'
+                  }`}>
                     {item.type}
                   </span>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700, color: '#FCD34D' }}>
+                  <div className="font-mono text-xs font-bold text-slate-700">
                     {item.barcode}
                   </div>
                 </div>
