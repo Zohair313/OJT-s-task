@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { dbStore } from '../db/database.js';
+import { dbStore, pgPool, isPgConnected } from '../db/database.js';
 import { Product, Batch, InventoryStock, CreateProductDTO, InboundStockDTO, BatchWithStock } from '../types/index.js';
 
 export class CatalogService {
@@ -162,14 +162,16 @@ export class CatalogService {
 
     dbStore.products.set(newProd.id, newProd);
 
-    // If initialPrice / initialStock provided, create initial active batch
     const initialPrice = (dto as any).initialPrice !== undefined ? Number((dto as any).initialPrice) : 10.00;
     const initialStock = (dto as any).initialStock !== undefined ? Number((dto as any).initialStock) : 25;
+    let initialBatch: Batch | null = null;
+    let initialStockRec: InventoryStock | null = null;
+
     if (initialStock > 0) {
       const batchId = uuidv4();
       const expDate = new Date();
       expDate.setFullYear(expDate.getFullYear() + 1);
-      const batch: Batch = {
+      initialBatch = {
         id: batchId,
         tenantId,
         productId: newProd.id,
@@ -181,7 +183,7 @@ export class CatalogService {
         isQuarantined: false,
         createdAt: new Date().toISOString()
       };
-      const stock: InventoryStock = {
+      initialStockRec = {
         id: uuidv4(),
         tenantId,
         batchId,
@@ -190,8 +192,49 @@ export class CatalogService {
         shelfLocation: 'Shelf 1-A',
         updatedAt: new Date().toISOString()
       };
-      dbStore.batches.set(batchId, batch);
-      dbStore.stocks.set(batchId, stock);
+      dbStore.batches.set(batchId, initialBatch);
+      dbStore.stocks.set(batchId, initialStockRec);
+    }
+
+    // Persist directly to PostgreSQL
+    if (isPgConnected) {
+      try {
+        await pgPool.query(`
+          INSERT INTO products (
+            id, tenant_id, category_id, sku, barcode, name, generic_name, brand,
+            unit_of_measure, default_tax_rate, reorder_point, is_prescription_required, is_active, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        `, [
+          newProd.id, newProd.tenantId, newProd.categoryId || null, newProd.sku, newProd.barcode,
+          newProd.name, newProd.genericName || null, newProd.brand || null, newProd.unitOfMeasure,
+          newProd.defaultTaxRate, newProd.reorderPoint, newProd.isPrescriptionRequired, newProd.isActive,
+          newProd.createdAt, newProd.updatedAt
+        ]);
+
+        if (initialBatch && initialStockRec) {
+          await pgPool.query(`
+            INSERT INTO batches (
+              id, tenant_id, product_id, batch_number, expiry_date, cost_price, selling_price, mrp, is_quarantined, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `, [
+            initialBatch.id, initialBatch.tenantId, initialBatch.productId, initialBatch.batchNumber,
+            initialBatch.expiryDate, initialBatch.costPrice, initialBatch.sellingPrice,
+            initialBatch.mrp, initialBatch.isQuarantined, initialBatch.createdAt
+          ]);
+
+          await pgPool.query(`
+            INSERT INTO inventory_stocks (
+              id, tenant_id, batch_id, quantity, reserved_quantity, shelf_location, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `, [
+            initialStockRec.id, initialStockRec.tenantId, initialStockRec.batchId,
+            initialStockRec.quantity, initialStockRec.reservedQuantity,
+            initialStockRec.shelfLocation, initialStockRec.updatedAt
+          ]);
+        }
+      } catch (pgErr) {
+        console.error('❌ [POSTGRESQL] Error inserting product into database:', pgErr);
+      }
     }
 
     const batches = this.getProductBatches(newProd.id);
@@ -340,6 +383,56 @@ export class CatalogService {
     product.updatedAt = new Date().toISOString();
     dbStore.products.set(product.id, product);
 
+    // Persist changes to PostgreSQL
+    if (isPgConnected) {
+      try {
+        await pgPool.query(`
+          UPDATE products SET
+            name = $1, generic_name = $2, brand = $3, unit_of_measure = $4,
+            default_tax_rate = $5, reorder_point = $6, is_prescription_required = $7,
+            is_active = $8, sku = $9, barcode = $10, category_id = $11, updated_at = $12
+          WHERE id = $13
+        `, [
+          product.name, product.genericName || null, product.brand || null, product.unitOfMeasure,
+          product.defaultTaxRate, product.reorderPoint, product.isPrescriptionRequired,
+          product.isActive, product.sku, product.barcode, product.categoryId || null,
+          product.updatedAt, product.id
+        ]);
+
+        if (dto.sellingPrice !== undefined && !isNaN(Number(dto.sellingPrice))) {
+          await pgPool.query(`
+            UPDATE batches SET selling_price = $1 WHERE product_id = $2
+          `, [Number(Number(dto.sellingPrice).toFixed(2)), product.id]);
+        }
+
+        if ((dto as any).stock !== undefined && !isNaN(Number((dto as any).stock))) {
+          const batches = Array.from(dbStore.batches.values()).filter(b => b.productId === product.id);
+          if (batches.length > 0) {
+            const primaryBatch = batches[0];
+            const primaryStock = dbStore.stocks.get(primaryBatch.id);
+            if (primaryStock) {
+              await pgPool.query(`
+                INSERT INTO inventory_stocks (id, tenant_id, batch_id, quantity, reserved_quantity, shelf_location, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (batch_id) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = EXCLUDED.updated_at
+              `, [
+                primaryStock.id, primaryStock.tenantId, primaryStock.batchId,
+                primaryStock.quantity, primaryStock.reservedQuantity,
+                primaryStock.shelfLocation, primaryStock.updatedAt
+              ]);
+            }
+            for (let i = 1; i < batches.length; i++) {
+              await pgPool.query(`
+                UPDATE inventory_stocks SET quantity = 0, updated_at = NOW() WHERE batch_id = $1
+              `, [batches[i].id]);
+            }
+          }
+        }
+      } catch (pgErr) {
+        console.error('❌ [POSTGRESQL] Error updating product in database:', pgErr);
+      }
+    }
+
     // Return enriched product
     const batches = this.getProductBatches(product.id);
     const totalStock = batches.reduce((sum, b) => sum + b.quantity, 0);
@@ -368,10 +461,24 @@ export class CatalogService {
           dbStore.stocks.delete(batchId);
         }
       }
+      if (isPgConnected) {
+        try {
+          await pgPool.query('DELETE FROM products WHERE id = $1', [id]);
+        } catch (pgErr) {
+          console.error('❌ [POSTGRESQL] Error deleting product from database:', pgErr);
+        }
+      }
       return { success: true, message: `Product '${product.name}' deleted successfully from catalog.` };
     }
     product.isActive = false;
     dbStore.products.set(id, product);
+    if (isPgConnected) {
+      try {
+        await pgPool.query('UPDATE products SET is_active = FALSE, updated_at = NOW() WHERE id = $1', [id]);
+      } catch (pgErr) {
+        console.error('❌ [POSTGRESQL] Error deactivating product in database:', pgErr);
+      }
+    }
     return { success: true, message: `Product '${product.name}' deactivated successfully.` };
   }
 
@@ -432,6 +539,43 @@ export class CatalogService {
       referenceNote: `Purchase Inward from Supplier Ref: ${dto.supplierInvoiceRef || 'N/A'}`,
       createdAt: new Date().toISOString()
     });
+
+    // Persist to PostgreSQL
+    if (isPgConnected) {
+      try {
+        await pgPool.query(`
+          INSERT INTO batches (
+            id, tenant_id, product_id, supplier_id, batch_number, manufacturing_date,
+            expiry_date, cost_price, selling_price, mrp, is_quarantined, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `, [
+          batch.id, batch.tenantId, batch.productId, batch.supplierId || null, batch.batchNumber,
+          batch.manufacturingDate || null, batch.expiryDate, batch.costPrice, batch.sellingPrice,
+          batch.mrp, batch.isQuarantined, batch.createdAt
+        ]);
+
+        await pgPool.query(`
+          INSERT INTO inventory_stocks (
+            id, tenant_id, batch_id, quantity, reserved_quantity, shelf_location, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [
+          stock.id, stock.tenantId, stock.batchId, stock.quantity, stock.reservedQuantity,
+          stock.shelfLocation, stock.updatedAt
+        ]);
+
+        await pgPool.query(`
+          INSERT INTO stock_movements (
+            id, tenant_id, batch_id, movement_type, quantity_changed, quantity_after, reference_note, created_at
+          ) VALUES ($1, $2, $3, 'PURCHASE_INWARD', $4, $5, $6, $7)
+        `, [
+          uuidv4(), tenantId, batch.id, dto.quantity, dto.quantity,
+          `Purchase Inward from Supplier Ref: ${dto.supplierInvoiceRef || 'N/A'}`,
+          new Date().toISOString()
+        ]);
+      } catch (pgErr) {
+        console.error('❌ [POSTGRESQL] Error persisting inward stock to database:', pgErr);
+      }
+    }
 
     return { batch, stock };
   }
