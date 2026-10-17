@@ -1069,6 +1069,7 @@ export function App() {
             isPharmacy
           }}
           format={isPharmacy ? '58mm' : '80mm'}
+          onTestScan={handleBarcodeScanned}
           onClose={() => setCompletedInvoice(null)}
         />
       )}

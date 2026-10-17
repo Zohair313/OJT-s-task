@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BarcodeSvg } from './BarcodeSvg';
+import { QrCodeSvg } from './QrCodeSvg';
 import {
   formatCurrency,
   generateEscPosText
@@ -14,13 +15,16 @@ import {
   FileText,
   Copy,
   Check,
-  CheckCircle2
+  CheckCircle2,
+  Zap,
+  QrCode
 } from 'lucide-react';
 
 interface ThermalReceiptProps {
   invoice: ReceiptInvoice;
   store: ReceiptStore;
   format?: '80mm' | '58mm';
+  onTestScan?: (code: string) => void;
   onClose: () => void;
 }
 
@@ -28,11 +32,13 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
   invoice,
   store,
   format = '80mm',
+  onTestScan,
   onClose
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<'80mm' | '58mm'>(format);
   const [activeTab, setActiveTab] = useState<'preview' | 'escpos'>('preview');
   const [copied, setCopied] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const is58mm = selectedFormat === '58mm';
 
@@ -55,6 +61,12 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleCopyBarcode = () => {
+    navigator.clipboard.writeText(invoice.invoiceNumber);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
   };
 
   const invoiceTime = new Date(invoice.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -296,18 +308,36 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
 
               <div className="thermal-dashed" />
 
-              {/* Thermal Barcode & Legal Disclaimer */}
+              {/* Thermal Barcode (1D Code-128 + 2D QR Code for Dual Scanning) */}
               <div className="text-center pt-2">
-                <BarcodeSvg
-                  value={invoice.invoiceNumber}
-                  width={is58mm ? 180 : 240}
-                  height={42}
-                  showText={true}
-                />
-                <div className="text-[8px] text-gray-600 font-bold mt-1">
-                  INV: #{invoice.invoiceNumber}
+                <div className="flex flex-col items-center gap-2">
+                  {/* High-Contrast Crisp Code-128 Barcode */}
+                  <BarcodeSvg
+                    value={invoice.invoiceNumber}
+                    width={is58mm ? 1.6 : 2}
+                    height={52}
+                    showText={true}
+                  />
+
+                  {/* 2D QR Code for instant phone camera scan */}
+                  <div className="flex items-center justify-center gap-3 mt-1">
+                    <QrCodeSvg value={invoice.invoiceNumber} size={is58mm ? 75 : 90} />
+                    <div className="text-left text-[8px] text-gray-600 space-y-1">
+                      <div className="font-bold flex items-center gap-1">
+                        <QrCode className="w-3 h-3 text-emerald-600" />
+                        <span>Instant QR Scan</span>
+                      </div>
+                      <div className="leading-tight text-gray-500">
+                        Scan with any phone camera or 2D scanner
+                      </div>
+                      <div className="font-mono text-[7.5px] font-bold text-gray-900">
+                        #{invoice.invoiceNumber}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[7.5px] text-gray-500 mt-0.5 leading-tight">
+
+                <div className="text-[7.5px] text-gray-500 mt-2 leading-tight">
                   Thank you for your visit! Goods once sold are returnable within 7 days with original receipt.
                 </div>
               </div>
@@ -315,11 +345,36 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
           )}
         </div>
 
-        {/* 4. Footer Dismissal Bar */}
+        {/* 4. Footer Dismissal Bar with 1-Click POS Scan Test */}
         <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-600 dark:text-slate-300 shrink-0">
-          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Fiscal Receipt Generated Successfully</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Fiscal Receipt Ready</span>
+            </div>
+
+            {onTestScan && (
+              <button
+                onClick={() => {
+                  onTestScan(invoice.invoiceNumber);
+                  onClose();
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg transition shadow-xs cursor-pointer"
+                title="Simulate scanning this receipt barcode into the active POS Counter"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <span>Simulate POS Scan</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleCopyBarcode}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+              title="Copy invoice barcode value to clipboard"
+            >
+              {codeCopied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+              <span>{codeCopied ? 'Copied' : invoice.invoiceNumber}</span>
+            </button>
           </div>
 
           <button

@@ -3,23 +3,25 @@ import JsBarcode from 'jsbarcode';
 
 interface BarcodeSvgProps {
   value: string;
-  width?: number;
+  width?: number; // module width or scale
   height?: number;
   showText?: boolean;
   fontSize?: number;
 }
 
 /**
- * Standards-Compliant ISO/IEC 15417 Code-128 Barcode Renderer
- * Renders verified 1D barcodes that scan reliably with all hardware laser scanners,
- * smartphone cameras, and webcams.
+ * Pixel-Perfect ISO/IEC 15417 Code-128 Barcode Renderer
+ * Features:
+ * - shape-rendering: crispEdges (ZERO subpixel anti-aliasing blur)
+ * - Integer 2px module bars for optimal camera sensor and laser sweep contrast
+ * - 12px white Quiet Zone margins required by all optical barcode decoders
  */
 export const BarcodeSvg: React.FC<BarcodeSvgProps> = ({
   value,
-  width = 180,
-  height = 40,
+  width = 2,
+  height = 52,
   showText = true,
-  fontSize = 11
+  fontSize = 12
 }) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
 
@@ -30,38 +32,40 @@ export const BarcodeSvg: React.FC<BarcodeSvgProps> = ({
       const cleanValue = String(value).trim();
       if (!cleanValue) return;
 
-      // Calculate module bar width:
-      // Code 128 has approximately (chars * 11 + 35) modules
-      // For sharp scanning on screen and 58mm/80mm thermal paper, 1.2px - 2.0px module width is optimal.
-      const moduleCount = cleanValue.length * 11 + 35;
-      let barWidth = 1.6;
-      if (typeof width === 'number' && width > 10) {
-        barWidth = Math.max(1.1, Math.min(2.4, (width - 16) / moduleCount));
-      }
+      // Module width (thickness of a single unit bar).
+      // 2px is the universal sweet spot for high-contrast scanning on screen and print.
+      const barWidth = typeof width === 'number' && width > 0 && width <= 4 ? width : 2;
 
       JsBarcode(svgRef.current, cleanValue, {
         format: 'CODE128',
         width: barWidth,
-        height: height || 40,
+        height: height || 52,
         displayValue: showText,
         text: cleanValue,
         font: 'monospace',
-        fontSize: fontSize || 11,
+        fontSize: fontSize || 12,
         fontOptions: 'bold',
-        textMargin: 3,
-        margin: 6,
+        textMargin: 4,
+        margin: 12, // Essential Quiet Zone (10+ modules)
         background: '#FFFFFF',
         lineColor: '#000000',
         valid: () => true
       });
+
+      // Apply crispEdges directly to avoid any sub-pixel interpolation blur
+      svgRef.current.style.shapeRendering = 'crispEdges';
     } catch (err) {
       console.warn('Barcode rendering error for value:', value, err);
     }
   }, [value, width, height, showText, fontSize]);
 
   return (
-    <div className="inline-flex flex-col items-center justify-center p-1 bg-white rounded shadow-xs max-w-full overflow-hidden">
-      <svg ref={svgRef} className="max-w-full block" />
+    <div className="inline-flex flex-col items-center justify-center p-2 bg-white rounded-lg border border-slate-200 shadow-xs max-w-full overflow-hidden">
+      <svg
+        ref={svgRef}
+        style={{ shapeRendering: 'crispEdges' }}
+        className="max-w-full block"
+      />
     </div>
   );
 };
