@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { dbStore } from '../db/database.js';
+import { dbStore, pgPool, isPgConnected } from '../db/database.js';
 import { CashDrawer, ZReport, CloseDrawerDTO } from '../types/index.js';
 
 export class ReconciliationService {
@@ -27,6 +27,19 @@ export class ReconciliationService {
     };
 
     dbStore.cashDrawers.set(drawer.id, drawer);
+
+    if (isPgConnected) {
+      pgPool.query(`
+        INSERT INTO cash_drawers (
+          id, tenant_id, cashier_id, terminal_identifier, opened_at, opening_float, total_cash_drops, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        drawer.id, drawer.tenantId, drawer.cashierId, drawer.terminalIdentifier,
+        drawer.openedAt, drawer.openingFloat, drawer.totalCashDrops, drawer.status
+      ]).catch(err => console.error('❌ [POSTGRESQL] Error inserting cash drawer:', err));
+    }
+
     return drawer;
   }
 
@@ -40,6 +53,13 @@ export class ReconciliationService {
     }
 
     drawer.totalCashDrops += amount;
+
+    if (isPgConnected) {
+      pgPool.query(`
+        UPDATE cash_drawers SET total_cash_drops = $1 WHERE id = $2
+      `, [drawer.totalCashDrops, drawer.id]).catch(err => console.error('❌ [POSTGRESQL] Error updating cash drop:', err));
+    }
+
     return drawer;
   }
 
@@ -118,6 +138,30 @@ export class ReconciliationService {
     drawer.closingCash = actualCountedCash;
 
     dbStore.zReports.set(zReport.id, zReport);
+
+    if (isPgConnected) {
+      pgPool.query(`
+        UPDATE cash_drawers SET status = 'CLOSED', closed_at = $1, closing_cash = $2 WHERE id = $3
+      `, [drawer.closedAt, drawer.closingCash, drawer.id]).catch(err => console.error('❌ [POSTGRESQL] Error closing cash drawer:', err));
+
+      pgPool.query(`
+        INSERT INTO z_reports (
+          id, tenant_id, drawer_id, report_code, total_cash_sales, total_card_sales,
+          total_upi_sales, total_tax_collected, total_discounts_given, gross_margin,
+          expected_cash_in_drawer, actual_counted_cash, cash_variance, discrepancy_reason, generated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ON CONFLICT (drawer_id) DO UPDATE SET
+          actual_counted_cash = EXCLUDED.actual_counted_cash,
+          cash_variance = EXCLUDED.cash_variance,
+          discrepancy_reason = EXCLUDED.discrepancy_reason
+      `, [
+        zReport.id, zReport.tenantId, zReport.drawerId, zReport.reportCode,
+        zReport.totalCashSales, zReport.totalCardSales, zReport.totalUpiSales,
+        zReport.totalTaxCollected, zReport.totalDiscountsGiven, zReport.grossMargin,
+        zReport.expectedCashInDrawer, zReport.actualCountedCash, zReport.cashVariance,
+        zReport.discrepancyReason || null, zReport.generatedAt
+      ]).catch(err => console.error('❌ [POSTGRESQL] Error persisting Z-Report:', err));
+    }
 
     return { drawer, zReport };
   }

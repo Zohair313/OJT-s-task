@@ -1,5 +1,7 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Tenant, Product, Batch, InventoryStock, BatchWithStock,
@@ -9,7 +11,11 @@ import {
 import { runPgMigrations } from './schema.js';
 import { seedPgIfEmpty } from './seedPg.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 // PostgreSQL Connection Pool (Neon Cloud or Native PostgreSQL)
 export const pgPool = new Pool({

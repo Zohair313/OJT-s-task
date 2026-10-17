@@ -454,21 +454,40 @@ export class CatalogService {
       throw { status: 404, message: `Product ${id} not found` };
     }
     if (hard) {
-      dbStore.products.delete(id);
-      for (const [batchId, b] of dbStore.batches.entries()) {
-        if (b.productId === id) {
-          dbStore.batches.delete(batchId);
-          dbStore.stocks.delete(batchId);
-        }
-      }
       if (isPgConnected) {
         try {
           await pgPool.query('DELETE FROM products WHERE id = $1', [id]);
-        } catch (pgErr) {
+          dbStore.products.delete(id);
+          for (const [batchId, b] of dbStore.batches.entries()) {
+            if (b.productId === id) {
+              dbStore.batches.delete(batchId);
+              dbStore.stocks.delete(batchId);
+            }
+          }
+          return { success: true, message: `Product '${product.name}' deleted successfully from catalog.` };
+        } catch (pgErr: any) {
+          // If referenced by sales invoices (FK RESTRICT 23001 or 23503), soft-delete instead
+          if (pgErr.code === '23001' || pgErr.code === '23503') {
+            await pgPool.query('UPDATE products SET is_active = FALSE, updated_at = NOW() WHERE id = $1', [id]);
+            product.isActive = false;
+            dbStore.products.set(id, product);
+            return {
+              success: true,
+              message: `Product '${product.name}' has historical sales records. For fiscal audit compliance, it was archived and deactivated instead of permanently erased.`
+            };
+          }
           console.error('❌ [POSTGRESQL] Error deleting product from database:', pgErr);
         }
+      } else {
+        dbStore.products.delete(id);
+        for (const [batchId, b] of dbStore.batches.entries()) {
+          if (b.productId === id) {
+            dbStore.batches.delete(batchId);
+            dbStore.stocks.delete(batchId);
+          }
+        }
+        return { success: true, message: `Product '${product.name}' deleted successfully from catalog.` };
       }
-      return { success: true, message: `Product '${product.name}' deleted successfully from catalog.` };
     }
     product.isActive = false;
     dbStore.products.set(id, product);
