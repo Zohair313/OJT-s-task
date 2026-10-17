@@ -4,7 +4,7 @@ import { fefoService } from '../services/fefoService.js';
 import { checkoutService } from '../services/checkoutService.js';
 import { reconciliationService } from '../services/reconciliationService.js';
 import { concurrencyTestService } from '../services/concurrencyTestService.js';
-import { dbStore, isPgConnected } from '../db/database.js';
+import { dbStore, isPgConnected, pgPool } from '../db/database.js';
 
 export const apiRouter = Router();
 
@@ -86,7 +86,7 @@ apiRouter.delete('/products/:id', async (req: Request, res: Response) => {
   }
 });
 
-// 2. High-speed Scanner Barcode/SKU Lookup (< 25ms)
+// 2. High-speed Scanner Barcode/SKU & Receipt Lookup (< 25ms)
 apiRouter.get('/scanner/lookup/:code', async (req: Request, res: Response) => {
   try {
     const tenantId = getTenantId(req);
@@ -95,11 +95,75 @@ apiRouter.get('/scanner/lookup/:code', async (req: Request, res: Response) => {
     const cleanDigits = rawCode.replace(/[^0-9]/g, '');
 
     // 1. Check if scanned barcode is an Invoice Receipt (e.g. starts with INV- or numeric invoice sequence)
-    const matchedInvoice = Array.from(dbStore.invoices.values()).find(
+    let matchedInvoice = Array.from(dbStore.invoices.values()).find(
       inv => inv.id === rawCode ||
              inv.invoiceNumber.toLowerCase() === rawCode.toLowerCase() ||
              (cleanDigits.length >= 8 && inv.invoiceNumber.replace(/[^0-9]/g, '').includes(cleanDigits))
     );
+
+    if (!matchedInvoice && isPgConnected) {
+      try {
+        const invRes = await pgPool.query(
+          `SELECT * FROM invoices 
+           WHERE id = $1 
+              OR LOWER(invoice_number) = LOWER($1) 
+              OR regexp_replace(invoice_number, '[^0-9]', '', 'g') LIKE '%' || $2 || '%' 
+           ORDER BY created_at DESC LIMIT 1`,
+          [rawCode, cleanDigits.length >= 8 ? cleanDigits : 'NONE']
+        );
+        if (invRes.rows.length > 0) {
+          const row = invRes.rows[0];
+          const itemsRes = await pgPool.query(
+            `SELECT ii.*, p.name as product_name, b.batch_number, b.expiry_date
+             FROM invoice_items ii
+             LEFT JOIN products p ON ii.product_id = p.id
+             LEFT JOIN batches b ON ii.batch_id = b.id
+             WHERE ii.invoice_id = $1`,
+            [row.id]
+          );
+
+          matchedInvoice = {
+            id: row.id,
+            tenantId: row.tenant_id,
+            cashierId: row.cashier_id,
+            drawerId: row.drawer_id,
+            invoiceNumber: row.invoice_number,
+            patientId: row.patient_id,
+            doctorId: row.doctor_id,
+            prescriptionNumber: row.prescription_number,
+            subtotal: Number(row.subtotal),
+            discountAmount: Number(row.discount_amount),
+            taxAmount: Number(row.tax_amount),
+            roundOff: Number(row.round_off),
+            grandTotal: Number(row.grand_total),
+            paymentMethod: 'CASH',
+            tenderedAmount: Number(row.grand_total),
+            changeDue: 0,
+            status: row.status,
+            items: itemsRes.rows.map(it => ({
+              id: it.id,
+              invoiceId: it.invoice_id,
+              productId: it.product_id,
+              productName: it.product_name || 'Item',
+              batchId: it.batch_id,
+              batchNumber: it.batch_number || 'N/A',
+              expiryDate: it.expiry_date || 'N/A',
+              quantity: it.quantity,
+              unitPrice: Number(it.unit_price),
+              taxRate: Number(it.tax_rate),
+              taxAmount: Number(it.tax_amount),
+              discountAmount: Number(it.discount_amount),
+              lineTotal: Number(it.line_total),
+              createdAt: it.created_at
+            })),
+            createdAt: row.created_at
+          };
+          dbStore.invoices.set(matchedInvoice.id, matchedInvoice);
+        }
+      } catch (err) {
+        console.warn('PG invoice lookup fallback warning:', err);
+      }
+    }
 
     if (matchedInvoice) {
       const tenant = dbStore.tenants.get(matchedInvoice.tenantId);
