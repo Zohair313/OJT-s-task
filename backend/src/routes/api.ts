@@ -5,6 +5,7 @@ import { checkoutService } from '../services/checkoutService.js';
 import { reconciliationService } from '../services/reconciliationService.js';
 import { concurrencyTestService } from '../services/concurrencyTestService.js';
 import { dbStore, isPgConnected, pgPool } from '../db/database.js';
+import { Invoice } from '../types/index.js';
 
 export const apiRouter = Router();
 
@@ -122,15 +123,15 @@ apiRouter.get('/scanner/lookup/:code', async (req: Request, res: Response) => {
             [row.id]
           );
 
-          matchedInvoice = {
+          const loadedInvoice: Invoice = {
             id: row.id,
             tenantId: row.tenant_id,
             cashierId: row.cashier_id,
             drawerId: row.drawer_id,
             invoiceNumber: row.invoice_number,
-            patientId: row.patient_id,
-            doctorId: row.doctor_id,
-            prescriptionNumber: row.prescription_number,
+            patientId: row.patient_id || undefined,
+            doctorLicense: row.doctor_id || undefined,
+            prescriptionNumber: row.prescription_number || undefined,
             subtotal: Number(row.subtotal),
             discountAmount: Number(row.discount_amount),
             taxAmount: Number(row.tax_amount),
@@ -153,12 +154,12 @@ apiRouter.get('/scanner/lookup/:code', async (req: Request, res: Response) => {
               taxRate: Number(it.tax_rate),
               taxAmount: Number(it.tax_amount),
               discountAmount: Number(it.discount_amount),
-              lineTotal: Number(it.line_total),
-              createdAt: it.created_at
+              lineTotal: Number(it.line_total)
             })),
             createdAt: row.created_at
           };
-          dbStore.invoices.set(matchedInvoice.id, matchedInvoice);
+          matchedInvoice = loadedInvoice;
+          dbStore.invoices.set(loadedInvoice.id, loadedInvoice);
         }
       } catch (err) {
         console.warn('PG invoice lookup fallback warning:', err);
