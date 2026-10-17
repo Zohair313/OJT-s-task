@@ -163,7 +163,25 @@ export function App() {
       const res = await fetch(`/api/v1/scanner/lookup/${encodeURIComponent(cleanBarcode)}?tenantId=${tenantId}`);
       const data = await res.json();
 
-      if (!res.ok || !data.product) {
+      if (!res.ok) {
+        playScannerBeep(false);
+        showNotification(data?.message || `No item found for barcode '${cleanBarcode}'`, 'error');
+        return;
+      }
+
+      // If scanned barcode is an invoice receipt, immediately display the receipt
+      if (data.type === 'INVOICE' && data.invoice) {
+        playScannerBeep(true);
+        setCompletedInvoice(data.invoice);
+        const latency = Math.round(performance.now() - start);
+        setLastScanLatency(latency);
+        showNotification(`Loaded Receipt #${data.invoice.invoiceNumber} (${latency}ms)`, 'success');
+        setSearchQuery('');
+        setSearchResults([]);
+        return;
+      }
+
+      if (!data.product) {
         playScannerBeep(false);
         showNotification(`No item found for barcode '${cleanBarcode}'`, 'error');
         return;

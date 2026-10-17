@@ -297,11 +297,12 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
               <div className="thermal-dashed" />
 
               {/* Thermal Barcode & Legal Disclaimer */}
-              <div className="text-center pt-1">
+              <div className="text-center pt-2">
                 <BarcodeSvg
-                  value={invoice.invoiceNumber.replace(/[^0-9]/g, '').slice(-12) || '890100000001'}
-                  width={is58mm ? 150 : 200}
-                  height={32}
+                  value={invoice.invoiceNumber}
+                  width={is58mm ? 180 : 240}
+                  height={42}
+                  showText={true}
                 />
                 <div className="text-[8px] text-gray-600 font-bold mt-1">
                   INV: #{invoice.invoiceNumber}
@@ -315,15 +316,15 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({
         </div>
 
         {/* 4. Footer Dismissal Bar */}
-        <div className="p-3.5 bg-white border-t border-slate-200 flex justify-between items-center text-xs text-slate-600 shrink-0">
-          <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+        <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-600 dark:text-slate-300 shrink-0">
+          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>Fiscal Receipt Generated Successfully</span>
           </div>
 
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg border border-slate-200 transition shadow-xs"
+            className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition shadow-xs cursor-pointer"
           >
             Done (Close)
           </button>

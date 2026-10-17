@@ -91,14 +91,43 @@ apiRouter.get('/scanner/lookup/:code', async (req: Request, res: Response) => {
   try {
     const tenantId = getTenantId(req);
     const start = performance.now();
-    const product = await catalogService.lookupByBarcodeOrSku(tenantId, req.params.code);
+    const rawCode = req.params.code.trim();
+    const cleanDigits = rawCode.replace(/[^0-9]/g, '');
+
+    // 1. Check if scanned barcode is an Invoice Receipt (e.g. starts with INV- or numeric invoice sequence)
+    const matchedInvoice = Array.from(dbStore.invoices.values()).find(
+      inv => inv.id === rawCode ||
+             inv.invoiceNumber.toLowerCase() === rawCode.toLowerCase() ||
+             (cleanDigits.length >= 8 && inv.invoiceNumber.replace(/[^0-9]/g, '').includes(cleanDigits))
+    );
+
+    if (matchedInvoice) {
+      const tenant = dbStore.tenants.get(matchedInvoice.tenantId);
+      const latencyMs = Math.round(performance.now() - start);
+      return res.json({
+        type: 'INVOICE',
+        invoice: matchedInvoice,
+        store: {
+          name: tenant?.name || 'Retail Mart',
+          taxIdentifier: tenant?.taxIdentifier || 'TX-9901',
+          address: tenant?.address || 'Store Location',
+          phone: tenant?.phone || '555-0100',
+          isPharmacy: tenant?.domainType === 'HOSPITAL_PHARMACY'
+        },
+        latencyMs
+      });
+    }
+
+    // 2. Otherwise look up catalog product by barcode or SKU
+    const product = await catalogService.lookupByBarcodeOrSku(tenantId, rawCode);
     const latencyMs = Math.round(performance.now() - start);
 
     if (!product) {
-      return res.status(404).json({ error: 'NOT_FOUND', message: `No item found matching '${req.params.code}'` });
+      return res.status(404).json({ error: 'NOT_FOUND', message: `No item found matching '${rawCode}'` });
     }
 
     res.json({
+      type: 'PRODUCT',
       product,
       latencyMs
     });
