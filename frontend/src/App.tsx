@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Banknote,
   Building2,
+  Camera,
   ChevronDown,
   CreditCard,
   FileText,
@@ -23,6 +24,7 @@ import { ThermalReceipt } from './components/ThermalReceipt';
 import { ZReportModal } from './components/ZReportModal';
 import { ConcurrencyTestModal } from './components/ConcurrencyTestModal';
 import { ScannerSimulatorModal } from './components/ScannerSimulatorModal';
+import { CameraScannerModal } from './components/CameraScannerModal';
 import { AdminPanel } from './components/AdminPanel';
 import { ThemeToggle } from './components/ThemeToggle';
 import { playScannerBeep } from './utils/audio';
@@ -103,6 +105,7 @@ export function App() {
   const [showZReportModal, setShowZReportModal] = useState<boolean>(false);
   const [showConcurrencyModal, setShowConcurrencyModal] = useState<boolean>(false);
   const [showSimulatorModal, setShowSimulatorModal] = useState<boolean>(false);
+  const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState<boolean>(false);
 
   // 1. Fetch Tenants & Active Drawer on Mount / Tenant Change
@@ -152,14 +155,17 @@ export function App() {
 
   // 3. Scan-to-Cart Ingestion Logic (< 150ms Ingestion)
   const handleBarcodeScanned = async (barcode: string) => {
+    const cleanBarcode = (barcode || '').trim();
+    if (!cleanBarcode) return;
+
     const start = performance.now();
     try {
-      const res = await fetch(`/api/v1/scanner/lookup/${encodeURIComponent(barcode)}?tenantId=${tenantId}`);
+      const res = await fetch(`/api/v1/scanner/lookup/${encodeURIComponent(cleanBarcode)}?tenantId=${tenantId}`);
       const data = await res.json();
 
       if (!res.ok || !data.product) {
         playScannerBeep(false);
-        showNotification(`No item found for barcode '${barcode}'`, 'error');
+        showNotification(`No item found for barcode '${cleanBarcode}'`, 'error');
         return;
       }
 
@@ -217,6 +223,9 @@ export function App() {
         }
       });
 
+      // Play successful scanner audio confirmation
+      playScannerBeep(true);
+
       const latency = Math.round(performance.now() - start);
       setLastScanLatency(latency);
       showNotification(`Added ${product.name} (${latency}ms)`, 'success');
@@ -224,7 +233,7 @@ export function App() {
       setSearchResults([]);
     } catch (err: any) {
       playScannerBeep(false);
-      showNotification(err.message, 'error');
+      showNotification(err?.message || 'Barcode scan failed', 'error');
     }
   };
 
@@ -251,6 +260,9 @@ export function App() {
       } else if (e.key === 'F2') {
         e.preventDefault();
         searchInputRef.current?.focus();
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        setShowCameraModal(prev => !prev);
       } else if (e.key === 'F4') {
         e.preventDefault();
         setIsClinicalOpen(prev => !prev);
@@ -265,6 +277,7 @@ export function App() {
         setShowSimulatorModal(true);
       } else if (e.key === 'Escape') {
         setShowSimulatorModal(false);
+        setShowCameraModal(false);
         setShowConcurrencyModal(false);
         setShowZReportModal(false);
         setShowShortcutsHelp(false);
@@ -451,6 +464,16 @@ export function App() {
           <ThemeToggle />
 
           <button
+            onClick={() => setShowCameraModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 hover:border-emerald-300 dark:hover:border-emerald-700 text-emerald-700 dark:text-emerald-300 rounded-lg transition shadow-xs"
+            title="Scan barcode with device camera / webcam (F3)"
+          >
+            <Camera className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Camera</span>
+            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded text-emerald-700 dark:text-emerald-300">F3</kbd>
+          </button>
+
+          <button
             onClick={() => setShowSimulatorModal(true)}
             className="flex items-center gap-2 px-3 py-2 text-xs font-medium border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition shadow-xs"
           >
@@ -491,8 +514,10 @@ export function App() {
 
           <input
             ref={searchInputRef}
+            id="pos-search-input"
+            name="pos-search"
             type="text"
-            placeholder="Scan barcode with handheld reader or search product by name, SKU, generic formulation..."
+            placeholder="Scan barcode with handheld reader, click Camera (F3), or search product by name, SKU..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onKeyDown={e => {
@@ -515,10 +540,10 @@ export function App() {
                 }
               }
             }}
-            className="w-full h-12 pl-12 pr-24 bg-slate-50/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition shadow-xs"
+            className="w-full h-12 pl-12 pr-36 bg-slate-50/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition shadow-xs"
           />
 
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
             {searchQuery && (
               <button
                 onClick={() => {
@@ -531,6 +556,15 @@ export function App() {
                 ✕
               </button>
             )}
+            <button
+              onClick={() => setShowCameraModal(true)}
+              type="button"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-md transition shadow-xs cursor-pointer"
+              title="Open Webcam / Camera Scanner (F3)"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Camera</span>
+            </button>
             <kbd className="px-2 py-1 text-xs font-mono font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-500 dark:text-slate-400 shadow-xs">
               F2
             </kbd>
@@ -608,7 +642,18 @@ export function App() {
                 Your Counter Cart is Empty
               </div>
               <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-md leading-relaxed mb-6">
-                Scan a barcode using your handheld scanner, press <kbd className="px-1.5 py-0.5 text-xs font-mono font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-slate-700 dark:text-slate-300">⌘K</kbd> to simulate, or click a quick-add medicine:
+                Scan barcode with handheld reader, open{' '}
+                <button
+                  onClick={() => setShowCameraModal(true)}
+                  className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5 inline" /> Camera (F3)
+                </button>
+                , press{' '}
+                <kbd className="px-1.5 py-0.5 text-xs font-mono font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-slate-700 dark:text-slate-300">
+                  ⌘K
+                </kbd>{' '}
+                to simulate, or click a quick-add item:
               </p>
 
               <div className="flex gap-3 flex-wrap justify-center max-w-xl">
@@ -1036,6 +1081,13 @@ export function App() {
         />
       )}
 
+      {showCameraModal && (
+        <CameraScannerModal
+          onScanBarcode={handleBarcodeScanned}
+          onClose={() => setShowCameraModal(false)}
+        />
+      )}
+
       {showShortcutsHelp && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '440px', padding: '24px' }}>
@@ -1053,6 +1105,7 @@ export function App() {
                 {[
                   ['F1', 'Shortcut Reference'],
                   ['F2', 'Focus Product Search'],
+                  ['F3', 'Camera Barcode Scanner'],
                   ['F4', 'Toggle Prescription Drawer'],
                   ['F9', 'Cash Drawer / Z-Report'],
                   ['F12', 'Complete Checkout Transaction'],
