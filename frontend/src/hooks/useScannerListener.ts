@@ -10,13 +10,13 @@ interface UseScannerListenerOptions {
 
 export function useScannerListener({
   onScan,
-  maxInterKeyDeltaMs = 90,
+  maxInterKeyDeltaMs = 160,
   minBarcodeLength = 3,
   enabled = true
 }: UseScannerListenerOptions) {
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
-  const scanStartTimeRef = useRef<number>(0);
+  const bufferTimeoutRef = useRef<any>(null);
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
 
@@ -26,47 +26,77 @@ export function useScannerListener({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e || typeof e.key !== 'string') return;
 
-      // Don't intercept if user is typing into an input or textarea
       const target = e.target as HTMLElement | null;
       const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-      if (isInput) return;
+      const isSearchInput = target && (target.id === 'pos-search-input' || target.getAttribute('name') === 'pos-search');
 
       const now = performance.now();
       const delta = now - lastKeyTimeRef.current;
       lastKeyTimeRef.current = now;
 
-      // Handle barcode suffix termination (Enter key)
-      if (e.key === 'Enter') {
+      // Handle barcode suffix termination (Enter or Tab key)
+      if (e.key === 'Enter' || e.key === 'Tab') {
         const buffer = bufferRef.current.trim();
         if (buffer.length >= minBarcodeLength) {
           e.preventDefault();
+          e.stopPropagation();
           bufferRef.current = '';
+          if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
 
-          // Play confirmation beep and dispatch
+          // If barcode burst accidentally entered a non-search input, clean it
+          if (isInput && !isSearchInput && target && 'value' in target) {
+            const inputEl = target as HTMLInputElement;
+            if (typeof inputEl.value === 'string' && inputEl.value.endsWith(buffer)) {
+              inputEl.value = inputEl.value.slice(0, -buffer.length);
+            }
+          }
+
+          // Trigger scan callback
           playScannerBeep(true);
           onScanRef.current(buffer);
+          return;
         } else {
           bufferRef.current = '';
         }
         return;
       }
 
-      // Check if keystroke is rapid enough to be a hardware scanner burst
+      // If user is manually typing slowly in a text input (e.g. searching, typing notes),
+      // don't treat human keystrokes as hardware scanner burst
+      if (isInput && !isSearchInput && delta > 120 && bufferRef.current.length === 0) {
+        return;
+      }
+
+      // Check if keystroke is part of a rapid scanner burst
       if (delta < maxInterKeyDeltaMs || bufferRef.current.length === 0) {
-        if (bufferRef.current.length === 0) {
-          scanStartTimeRef.current = now;
-        }
         if (e.key && e.key.length === 1) {
           bufferRef.current += e.key;
+
+          // Clear buffer after 300ms of inactivity
+          if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
+          bufferTimeoutRef.current = setTimeout(() => {
+            bufferRef.current = '';
+          }, 300);
         }
       } else {
-        // Slow keystroke outside input: reset buffer to current character
-        bufferRef.current = (e.key && e.key.length === 1) ? e.key : '';
-        scanStartTimeRef.current = now;
+        // Gap was too long outside input: reset buffer with this single character
+        if (!isInput || isSearchInput) {
+          bufferRef.current = (e.key && e.key.length === 1) ? e.key : '';
+          if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
+          bufferTimeoutRef.current = setTimeout(() => {
+            bufferRef.current = '';
+          }, 300);
+        } else {
+          bufferRef.current = '';
+        }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    // Use capture phase to intercept scanner keystrokes cleanly
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
+    };
   }, [enabled, maxInterKeyDeltaMs, minBarcodeLength]);
 }
