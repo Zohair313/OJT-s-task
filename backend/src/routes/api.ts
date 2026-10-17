@@ -140,6 +140,7 @@ apiRouter.post('/checkout/commit', async (req: Request, res: Response) => {
     const invoice = await checkoutService.processCheckout(tenantId, cashierId, req.body);
     res.status(200).json(invoice);
   } catch (err: any) {
+    console.error('❌ [API /checkout/commit ERROR]:', err.message || err);
     res.status(err.status || 500).json({
       error: err.code || 'CHECKOUT_FAILED',
       message: err.message

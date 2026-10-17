@@ -286,7 +286,9 @@ export function App() {
   const totalItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const parsedTender = parseFloat(tenderedAmount);
-  const tenderedNumeric = (!isNaN(parsedTender) && isFinite(parsedTender) && parsedTender > 0) 
+  const isTenderEntered = tenderedAmount.trim().length > 0 && !isNaN(parsedTender);
+  const isInsufficientCash = paymentMethod === 'CASH' && isTenderEntered && parsedTender < cartGrandTotal;
+  const tenderedNumeric = isTenderEntered 
     ? Math.min(parsedTender, 100000) 
     : cartGrandTotal;
   const changeDue = Math.max(0, tenderedNumeric - cartGrandTotal);
@@ -309,14 +311,15 @@ export function App() {
       showNotification('Cart is empty. Scan an item first.', 'error');
       return;
     }
-    if (!activeDrawer) {
-      showNotification('No active drawer session found.', 'error');
+    if (isInsufficientCash) {
+      playScannerBeep(false);
+      showNotification(`Insufficient cash tender: Received $${parsedTender.toFixed(2)}, total due is $${cartGrandTotal.toFixed(2)}. Please collect the remaining $${(cartGrandTotal - parsedTender).toFixed(2)} or click 'Exact'.`, 'error');
       return;
     }
 
     try {
       const payload = {
-        drawerId: activeDrawer.id,
+        drawerId: activeDrawer?.id || '',
         items: cart.map(item => ({
           productId: item.productId,
           batchId: item.batchId,
@@ -344,13 +347,19 @@ export function App() {
 
       const invoice = await res.json();
       if (!res.ok) {
-        throw new Error(invoice.message || 'Checkout failed');
+        throw new Error(invoice.message || invoice.error || 'Checkout failed');
       }
 
       setCart([]);
       setTenderedAmount('');
       setCompletedInvoice(invoice);
       showNotification(`Invoice #${invoice.invoiceNumber} committed successfully.`, 'success');
+
+      // Refresh active drawer data after sale
+      fetch(`/api/v1/drawers/active?tenantId=${tenantId}`)
+        .then(r => r.json())
+        .then(d => { if (d) setActiveDrawer(d); })
+        .catch(() => {});
     } catch (err: any) {
       playScannerBeep(false);
       showNotification(`Checkout Aborted: ${err.message}`, 'error');
@@ -599,29 +608,59 @@ export function App() {
               </p>
 
               <div className="flex gap-3 flex-wrap justify-center max-w-xl">
-                <button
-                  onClick={() => handleBarcodeScanned('8901000000101')}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-850 hover:text-white text-slate-300 transition shadow-sm"
-                >
-                  <Pill className="w-4 h-4 text-emerald-400" />
-                  <span>Amoxicillin 500mg (FEFO)</span>
-                </button>
+                {isPharmacy ? (
+                  <>
+                    <button
+                      onClick={() => handleBarcodeScanned('8901000000101')}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-850 hover:text-white text-slate-300 transition shadow-sm"
+                    >
+                      <Pill className="w-4 h-4 text-emerald-400" />
+                      <span>Amoxicillin 500mg (FEFO)</span>
+                    </button>
 
-                <button
-                  onClick={() => handleBarcodeScanned('8901000000102')}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-850 hover:text-white text-slate-300 transition shadow-sm"
-                >
-                  <Pill className="w-4 h-4 text-blue-400" />
-                  <span>Paracetamol 650mg</span>
-                </button>
+                    <button
+                      onClick={() => handleBarcodeScanned('8901000000102')}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-850 hover:text-white text-slate-300 transition shadow-sm"
+                    >
+                      <Pill className="w-4 h-4 text-blue-400" />
+                      <span>Paracetamol 650mg</span>
+                    </button>
 
-                <button
-                  onClick={() => handleBarcodeScanned('8901000000001')}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-850 hover:text-white text-slate-300 transition shadow-sm"
-                >
-                  <ShoppingCart className="w-4 h-4 text-amber-400" />
-                  <span>Retail Soda (FMCG)</span>
-                </button>
+                    <button
+                      onClick={() => handleBarcodeScanned('8901000000203')}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-850 hover:text-white text-slate-300 transition shadow-sm"
+                    >
+                      <Pill className="w-4 h-4 text-amber-400" />
+                      <span>Ibuprofen 400mg</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleBarcodeScanned('8901000000001')}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-850 hover:text-white text-slate-300 transition shadow-sm"
+                    >
+                      <ShoppingCart className="w-4 h-4 text-amber-400" />
+                      <span>Retail Soda 500ml</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleBarcodeScanned('8901000000500')}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-850 hover:text-white text-slate-300 transition shadow-sm"
+                    >
+                      <ShoppingCart className="w-4 h-4 text-emerald-400" />
+                      <span>Organic Almond Milk 1L</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleBarcodeScanned('8901000000501')}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-850 hover:text-white text-slate-300 transition shadow-sm"
+                    >
+                      <ShoppingCart className="w-4 h-4 text-blue-400" />
+                      <span>Whole Wheat Bread 500g</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -852,12 +891,19 @@ export function App() {
 
           {/* Cash Tendered & Quick Bills */}
           {paymentMethod === 'CASH' && (
-            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div className={`bg-slate-950/80 border rounded-xl p-4 space-y-3 transition ${
+              isInsufficientCash ? 'border-rose-900/60 bg-rose-950/10' : 'border-slate-800'
+            }`}>
               <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-wider">
                 <span>Cash Tendered</span>
-                {changeDue > 0 && isFinite(changeDue) && changeDue <= 100000 && (
+                {changeDue > 0 && isFinite(changeDue) && changeDue <= 100000 && !isInsufficientCash && (
                   <span className="text-emerald-400 font-mono text-xs normal-case font-bold">
                     Change Due: ${changeDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                )}
+                {isInsufficientCash && (
+                  <span className="text-rose-400 font-mono text-xs normal-case font-bold animate-pulse">
+                    Short by: ${(cartGrandTotal - parsedTender).toFixed(2)}
                   </span>
                 )}
               </div>
@@ -883,7 +929,11 @@ export function App() {
                       e.preventDefault();
                     }
                   }}
-                  className="w-full h-11 pl-8 pr-4 bg-slate-900 border border-slate-800 rounded-lg text-base font-bold font-mono text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                  className={`w-full h-11 pl-8 pr-4 bg-slate-900 border rounded-lg text-base font-bold font-mono text-slate-100 placeholder:text-slate-500 focus:outline-none transition ${
+                    isInsufficientCash
+                      ? 'border-rose-500/80 focus:border-rose-400 text-rose-200'
+                      : 'border-slate-800 focus:border-emerald-500'
+                  }`}
                 />
               </div>
 
@@ -910,14 +960,18 @@ export function App() {
           {/* Bottom Action: Full-width Primary Checkout Button with Emerald Fill */}
           <button
             onClick={handleCheckoutSubmit}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || isInsufficientCash}
             className={`w-full h-14 py-3.5 px-6 rounded-xl font-bold text-sm flex items-center justify-between mt-auto transition shadow-lg ${
-              cart.length > 0
+              cart.length > 0 && !isInsufficientCash
                 ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white cursor-pointer shadow-emerald-950/50'
                 : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
             }`}
           >
-            <span className="tracking-wide">Complete Checkout</span>
+            <span className="tracking-wide">
+              {isInsufficientCash
+                ? `Insufficient Tender ($${parsedTender.toFixed(2)} / $${cartGrandTotal.toFixed(2)})`
+                : 'Complete Checkout'}
+            </span>
             <div className="flex items-center gap-2">
               {cart.length > 0 && (
                 <span className="font-mono text-emerald-200 font-semibold text-xs">
