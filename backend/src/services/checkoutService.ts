@@ -266,6 +266,7 @@ export class CheckoutService {
               for (const line of resolvedLines) {
                 const dbQty = lockedQty.get(line.batchId) ?? 0;
                 if (dbQty < line.quantity) {
+                  syncCacheFromLockedQty(lockedQty);
                   throw {
                     status: 409,
                     code: 'CONCURRENCY_STOCK_DEPLETED',
