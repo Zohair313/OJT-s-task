@@ -5,7 +5,7 @@ import { checkoutService } from '../services/checkoutService.js';
 import { reconciliationService } from '../services/reconciliationService.js';
 import { concurrencyTestService } from '../services/concurrencyTestService.js';
 import { dbStore, isPgConnected } from '../db/database.js';
-import { findInvoiceByCode } from '../services/invoiceLookupService.js';
+import { findInvoiceByCode, findInvoiceById, searchInvoices } from '../services/invoiceLookupService.js';
 
 export const apiRouter = Router();
 
@@ -186,16 +186,33 @@ apiRouter.post('/test/concurrency-race', async (req: Request, res: Response) => 
   }
 });
 
-// 6b. Admin Slip Lookup — full invoice (header + items + payment + clinical) by slip/invoice number
-apiRouter.get('/invoices/lookup', async (req: Request, res: Response) => {
+// 6b. Admin Slip Search — ALL matching invoices (slip #, partial digits, cashier, patient/doctor name)
+apiRouter.get('/invoices/search', async (req: Request, res: Response) => {
   try {
     const q = String(req.query.q || '').trim();
     if (!q) {
-      return res.status(400).json({ error: 'BAD_REQUEST', message: 'Missing ?q= invoice number or slip code' });
+      return res.status(400).json({ error: 'BAD_REQUEST', message: 'Missing ?q=' });
     }
-    const invoice = await findInvoiceByCode(q);
+    const results = await searchInvoices(q);
+    res.json({ query: q, count: results.length, results });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6c. Admin Slip Detail — full invoice (header + items + payment + clinical).
+//     Accepts ?id=<invoice id> (exact, used by list click-through) or
+//     ?q=<code> (fuzzy scan/typed resolution).
+apiRouter.get('/invoices/lookup', async (req: Request, res: Response) => {
+  try {
+    const id = String(req.query.id || '').trim();
+    const q = String(req.query.q || '').trim();
+    if (!id && !q) {
+      return res.status(400).json({ error: 'BAD_REQUEST', message: 'Missing ?q= invoice number or ?id= invoice id' });
+    }
+    const invoice = id ? await findInvoiceById(id) : await findInvoiceByCode(q);
     if (!invoice) {
-      return res.status(404).json({ error: 'NOT_FOUND', message: `No invoice found for '${q}'` });
+      return res.status(404).json({ error: 'NOT_FOUND', message: `No invoice found for '${id || q}'` });
     }
     const tenant = dbStore.tenants.get(invoice.tenantId);
     res.json({

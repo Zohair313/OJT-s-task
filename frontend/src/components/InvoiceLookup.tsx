@@ -1,22 +1,43 @@
 import React, { useState } from 'react';
 import { ThermalReceipt } from './ThermalReceipt';
 import { formatCurrency } from '../utils/thermalReceiptUtil';
-import type { ReceiptInvoice, ReceiptStore } from '../utils/thermalReceiptUtil';
+import type { ReceiptStore } from '../utils/thermalReceiptUtil';
 import {
   Search,
   FileText,
   Printer,
   CreditCard,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  ChevronRight,
+  ArrowLeft,
+  ShoppingCart
 } from 'lucide-react';
 
 /**
  * Admin → Invoice Lookup section.
- * Paste a slip / invoice number (e.g. INV-20261020-1720) — or any 8+ digit
- * sequence contained in it — and view everything bought on that slip:
- * items, batch/expiry, tax, discounts, payment details + full receipt preview.
+ *
+ * Search accepts: slip/invoice number (INV-20261020-1720), any 4+ digit
+ * partial sequence, cashier id, or patient/doctor name. EVERY matching
+ * slip is listed (newest first); click a row to see exactly what was
+ * bought on it — items, batch/expiry, tax, discount, payment details,
+ * plus full thermal receipt preview.
  */
+
+interface SearchSummary {
+  id: string;
+  invoiceNumber: string;
+  createdAt: string;
+  tenantId: string;
+  tenantName?: string;
+  cashierId: string;
+  patientName?: string;
+  status: string;
+  paymentMethod?: string;
+  grandTotal: number;
+  itemLines: number;
+  totalUnits: number;
+}
 
 interface LookupItem {
   id: string;
@@ -31,14 +52,27 @@ interface LookupItem {
   lineTotal: number;
 }
 
-interface LookupInvoice extends Omit<ReceiptInvoice, 'items'> {
+interface LookupInvoice {
   id: string;
+  invoiceNumber: string;
+  createdAt: string;
   tenantId: string;
   drawerId: string;
   cashierId?: string;
-  status?: string;
-  paymentReference?: string;
+  patientName?: string;
   doctorName?: string;
+  doctorLicense?: string;
+  prescriptionNumber?: string;
+  status?: string;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  roundOff?: number;
+  grandTotal: number;
+  paymentMethod: string;
+  tenderedAmount: number;
+  changeDue: number;
+  paymentReference?: string;
   items: LookupItem[];
 }
 
@@ -60,7 +94,9 @@ export const InvoiceLookup: React.FC = () => {
   const [query, setQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<SearchSummary[] | null>(null);
   const [invoice, setInvoice] = useState<LookupInvoice | null>(null);
+  const [detailLoading, setDetailLoading] = useState<boolean>(false);
   const [store, setStore] = useState<ReceiptStore | null>(null);
   const [showReceipt, setShowReceipt] = useState<boolean>(false);
 
@@ -68,32 +104,69 @@ export const InvoiceLookup: React.FC = () => {
     e?.preventDefault();
     const q = query.trim();
     if (!q) {
+      setResults(null);
       setInvoice(null);
-      setError('Slip / invoice number enter karein.');
+      setError('Slip number, partial digits, ya user/patient naam enter karein.');
       return;
     }
     setLoading(true);
     setError(null);
+    setResults(null);
     setInvoice(null);
     setShowReceipt(false);
     try {
-      const res = await fetch(`/api/v1/invoices/lookup?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/v1/invoices/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
       if (!res.ok) {
-        setError(data?.message || `No invoice found for '${q}'`);
+        setError(data?.message || `Search failed for '${q}'`);
         return;
       }
-      setInvoice(data.invoice);
-      setStore(data.store || null);
+      const list: SearchSummary[] = data.results || [];
+      if (list.length === 0) {
+        setError(`'${q}' se koi invoice nahi mila. Slip number, 4+ digit sequence, ya cashier/patient naam try karein.`);
+        return;
+      }
+      setResults(list);
+      // Single exact match → open its full purchase detail directly
+      if (list.length === 1) {
+        await openDetail(list[0]);
+      }
     } catch (err: any) {
-      setError(err?.message || 'Lookup failed — backend reachable nahi hai.');
+      setError(err?.message || 'Search failed — backend reachable nahi hai.');
     } finally {
       setLoading(false);
     }
   };
 
+  const openDetail = async (summary: SearchSummary) => {
+    setDetailLoading(true);
+    setError(null);
+    setShowReceipt(false);
+    try {
+      const res = await fetch(`/api/v1/invoices/lookup?id=${encodeURIComponent(summary.id)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.message || `Invoice ${summary.invoiceNumber} load nahi ho saka.`);
+        return;
+      }
+      setInvoice(data.invoice);
+      setStore(data.store || null);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load invoice detail.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const backToResults = () => {
+    setInvoice(null);
+    setShowReceipt(false);
+    setError(null);
+  };
+
   const reset = () => {
     setQuery('');
+    setResults(null);
     setInvoice(null);
     setError(null);
     setShowReceipt(false);
@@ -105,8 +178,15 @@ export const InvoiceLookup: React.FC = () => {
     return !isNaN(d.getTime()) && d.getTime() < Date.now();
   };
 
-  const totalUnits = invoice ? invoice.items.reduce((s, it) => s + it.quantity, 0) : 0;
   const now = invoice ? new Date(invoice.createdAt) : null;
+  const totalUnits = invoice ? invoice.items.reduce((s, it) => s + it.quantity, 0) : 0;
+  const listTotals = results
+    ? {
+        count: results.length,
+        units: results.reduce((s, r) => s + r.totalUnits, 0),
+        spend: results.reduce((s, r) => s + r.grandTotal, 0)
+      }
+    : null;
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col gap-5 min-h-0 pr-1">
@@ -119,7 +199,7 @@ export const InvoiceLookup: React.FC = () => {
           <div>
             <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Invoice / Slip Lookup</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Slip number dalye (e.g. <span className="font-mono font-semibold">INV-20261020-1720</span>) — ya koi bhi 8+ digit sequence jo invoice number me ho — pura kharida hua saman aa jayega.
+              Slip number (e.g. <span className="font-mono font-semibold">INV-20261020-1720</span>), koi bhi 4+ digit sequence, ya user/patient ka naam — us se jude **tamam** sales ki list aayegi.
             </p>
           </div>
         </div>
@@ -130,9 +210,9 @@ export const InvoiceLookup: React.FC = () => {
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="INV-20261020-1720"
-              aria-label="Invoice or slip number"
-              className="w-full h-11 pl-10 pr-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 rounded-lg text-sm font-mono font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none transition"
+              placeholder="INV-20261020-1720 · 20261020 · cashier/patient naam"
+              aria-label="Invoice number, partial digits, or user name"
+              className="w-full h-11 pl-10 pr-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 rounded-lg text-sm font-mono font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 placeholder:font-normal focus:outline-none transition"
             />
           </div>
           <button
@@ -141,9 +221,9 @@ export const InvoiceLookup: React.FC = () => {
             className="h-11 px-5 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-lg transition shadow-xs disabled:opacity-60"
           >
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            <span>Search Slip</span>
+            <span>Search</span>
           </button>
-          {invoice && (
+          {(results || invoice) && (
             <button
               type="button"
               onClick={reset}
@@ -160,23 +240,114 @@ export const InvoiceLookup: React.FC = () => {
         <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/70 rounded-xl px-5 py-4 flex items-start gap-3 text-xs text-rose-800 dark:text-rose-300 shrink-0">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-rose-600 dark:text-rose-400" />
           <div>
-            <div className="font-bold">Slip nahi mili</div>
+            <div className="font-bold">Koi data nahi mila</div>
             <div className="mt-0.5">{error}</div>
           </div>
         </div>
       )}
 
-      {/* Loading */}
+      {/* Search loading */}
       {loading && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 flex items-center justify-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
           <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
-          Fetching invoice from database…
+          Searching invoices…
         </div>
       )}
 
-      {/* Result */}
-      {invoice && !loading && (
+      {/* Detail loading */}
+      {detailLoading && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 flex items-center justify-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
+          Loading full slip…
+        </div>
+      )}
+
+      {/* ============ RESULTS LIST ============ */}
+      {results && !invoice && !loading && !detailLoading && (
         <>
+          {/* Summary bar */}
+          <div className="bg-emerald-50/70 dark:bg-emerald-950/25 border border-emerald-200 dark:border-emerald-900 rounded-xl px-5 py-3.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs shrink-0">
+            <span className="font-bold text-emerald-800 dark:text-emerald-300">
+              {listTotals?.count} invoice{listTotals?.count === 1 ? '' : 's'} found
+            </span>
+            <span className="text-emerald-700/80 dark:text-emerald-400/80 font-mono">
+              {listTotals?.units} units total
+            </span>
+            <span className="text-emerald-700/80 dark:text-emerald-400/80 font-mono">
+              Total spend: <b>{formatCurrency(listTotals?.spend ?? 0)}</b>
+            </span>
+            <span className="text-emerald-700/60 dark:text-emerald-400/60 ml-auto">
+              Row dabayein → us slip ka pura kharidaari detail
+            </span>
+          </div>
+
+          {/* Rows */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs shrink-0">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+              {results.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => openDetail(r)}
+                  className="w-full text-left px-6 py-4 flex items-center gap-4 hover:bg-slate-50/80 dark:hover:bg-slate-950/50 transition group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:border-emerald-300 dark:group-hover:border-emerald-800 transition">
+                    <ShoppingCart className="w-4 h-4" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="font-mono text-sm font-bold text-slate-900 dark:text-slate-100">
+                        {r.invoiceNumber}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold border bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                        {r.status}
+                      </span>
+                      {r.patientName && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold border bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-900 text-sky-800 dark:text-sky-300">
+                          Patient: {r.patientName}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                      <span>{new Date(r.createdAt).toLocaleString()}</span>
+                      <span className="font-mono">{r.tenantName || r.tenantId}</span>
+                      <span className="font-mono">Cashier: {r.cashierId}</span>
+                      <span className="font-mono">
+                        {r.itemLines} lines · {r.totalUnits} units
+                      </span>
+                      {r.paymentMethod && (
+                        <span className="font-semibold">{PAYMENT_LABELS[r.paymentMethod] || r.paymentMethod}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className="font-mono text-base font-extrabold text-slate-900 dark:text-slate-100">
+                      {formatCurrency(r.grandTotal)}
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ============ SINGLE INVOICE DETAIL ============ */}
+      {invoice && !detailLoading && (
+        <>
+          {/* Back to results */}
+          {results && results.length > 1 && (
+            <button
+              onClick={backToResults}
+              className="self-start flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 transition shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to results ({results.length} invoices)
+            </button>
+          )}
+
           {/* Slip Header */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs shrink-0">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -250,7 +421,7 @@ export const InvoiceLookup: React.FC = () => {
             </div>
           </div>
 
-          {/* Items Table */}
+          {/* Items Table — exactly what was bought on this slip */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs shrink-0">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -347,11 +518,11 @@ export const InvoiceLookup: React.FC = () => {
       )}
 
       {/* Empty state (before first search) */}
-      {!invoice && !error && !loading && (
+      {!results && !invoice && !error && !loading && (
         <div className="border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl py-14 flex flex-col items-center gap-3 text-slate-400 dark:text-slate-500">
           <FileText className="w-9 h-9" />
-          <span className="text-xs font-semibold">
-            Upar slip number dalye taake us sale ka pura breakdown yahan dikhe
+          <span className="text-xs font-semibold text-center px-6">
+            Slip number ya user/patient naam dalye — us se jude tamam sales aur unke kharide hue items yahan milenge
           </span>
         </div>
       )}
