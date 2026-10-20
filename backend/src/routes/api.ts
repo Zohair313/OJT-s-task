@@ -170,7 +170,11 @@ apiRouter.post('/checkout/commit', async (req: Request, res: Response) => {
     console.error('❌ [API /checkout/commit ERROR]:', err.message || err);
     res.status(err.status || 500).json({
       error: err.code || 'CHECKOUT_FAILED',
-      message: err.message
+      code: err.code,
+      message: err.message,
+      // Domain errors like PRICE_CHANGED carry a price list the POS uses to
+      // refresh the cart before the cashier retries.
+      ...(Array.isArray(err.items) ? { items: err.items } : {})
     });
   }
 });

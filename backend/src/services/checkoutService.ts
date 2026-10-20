@@ -94,6 +94,26 @@ export class CheckoutService {
         if (!batch) {
           throw { status: 404, message: `Batch ${item.batchId} not found` };
         }
+
+        // SECURITY (#16): batch.sellingPrice is the source of truth. A tampered
+        // payload with a different unitPrice is rejected (409) so the POS
+        // refreshes the displayed price instead of silently charging an
+        // untrusted one.
+        const serverPrice = batch.sellingPrice;
+        if (item.unitPrice !== undefined && Math.abs(item.unitPrice - serverPrice) > 0.005) {
+          throw {
+            status: 409,
+            code: 'PRICE_CHANGED',
+            message: `Price changed for '${product.name}': display had $${Number(item.unitPrice).toFixed(2)}, current price is $${serverPrice.toFixed(2)}. Cart updated — please re-check the total and submit again.`,
+            items: [{ productId: product.id, batchId: batch.id, unitPrice: serverPrice }]
+          };
+        }
+
+        // SECURITY: per-line discount is capped at the line's gross value so a
+        // tampered payload can never drive the invoice total negative.
+        const lineGrossCents = Math.round(item.quantity * serverPrice * 100);
+        const discountCents = Math.min(Math.round((item.discountAmount || 0) * 100), lineGrossCents);
+
         resolvedLines.push({
           productId: product.id,
           productName: product.name,
@@ -101,12 +121,13 @@ export class CheckoutService {
           batchNumber: batch.batchNumber,
           expiryDate: batch.expiryDate,
           quantity: item.quantity,
-          unitPrice: item.unitPrice || batch.sellingPrice,
+          unitPrice: serverPrice,
           taxRate: product.defaultTaxRate,
-          discountAmount: item.discountAmount || 0
+          discountAmount: Number((discountCents / 100).toFixed(2))
         });
       } else {
-        // FEFO Auto-allocation
+        // FEFO Auto-allocation (unit prices always come from the batches here;
+        // any client-sent unitPrice is ignored on this path)
         const fefo = fefoService.resolveAllocations(product.id, item.quantity);
         if (fefo.unfulfilledQuantity > 0) {
           throw {
@@ -115,7 +136,29 @@ export class CheckoutService {
             message: `Insufficient stock for '${product.name}'. Requested: ${item.quantity}, Available: ${fefo.totalAllocated}`
           };
         }
-        for (const alloc of fefo.allocations) {
+
+        // Split the line discount across allocation lines proportionally to
+        // their gross value (integer cents, remainder to the final line) so a
+        // multi-batch FEFO split can never multiply the discount.
+        const allocGrossCents = fefo.allocations.map(a =>
+          Math.round(a.allocatedQuantity * a.unitPrice * 100)
+        );
+        const totalGrossCents = allocGrossCents.reduce((s, c) => s + c, 0);
+        const discountCents = Math.min(
+          Math.round((item.discountAmount || 0) * 100),
+          totalGrossCents
+        );
+        let discountRemaining = discountCents;
+
+        fefo.allocations.forEach((alloc, idx) => {
+          const isLast = idx === fefo.allocations.length - 1;
+          const shareCents = isLast
+            ? discountRemaining
+            : totalGrossCents > 0
+              ? Math.min(Math.round((discountCents * allocGrossCents[idx]) / totalGrossCents), discountRemaining)
+              : 0;
+          discountRemaining -= shareCents;
+
           resolvedLines.push({
             productId: product.id,
             productName: product.name,
@@ -125,9 +168,9 @@ export class CheckoutService {
             quantity: alloc.allocatedQuantity,
             unitPrice: alloc.unitPrice,
             taxRate: product.defaultTaxRate,
-            discountAmount: item.discountAmount || 0
+            discountAmount: Number((shareCents / 100).toFixed(2))
           });
-        }
+        });
       }
     }
 
@@ -196,6 +239,22 @@ export class CheckoutService {
       const taxAmount = Number((totalTaxCents / 100).toFixed(2));
       const grandTotal = Number((grandTotalCents / 100).toFixed(2));
       const roundOff = Number((roundOffCents / 100).toFixed(2));
+
+      // SECURITY: payments.amount has CHECK (amount > 0) in the schema, so a
+      // zero-total invoice can never be persisted. Reject it here (before the
+      // transaction) with a clear 400 instead of letting it surface as a 503.
+      // This also means an oversized discount can never yield a free sale —
+      // per-line discounts are already capped at the line gross above, so the
+      // total can only reach 0 when discounts cover the whole cart.
+      if (grandTotalCents < 100) {
+        throw {
+          status: 400,
+          code: 'TOTAL_TOO_LOW',
+          message: rawGrandTotalCents <= 0
+            ? 'Discount covers the entire sale — the invoice total must be at least $1.00. Reduce the discount.'
+            : `Sale total $${(rawGrandTotalCents / 100).toFixed(2)} rounds to $0.00 — the minimum billable invoice is $1.00.`
+        };
+      }
 
       // Validate payment tender
       let tendered = (payment.tenderedAmount !== undefined && payment.tenderedAmount > 0)

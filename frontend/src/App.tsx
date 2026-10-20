@@ -520,6 +520,31 @@ export function App() {
 
       const invoice = await res.json();
       if (!res.ok) {
+        // Server-authoritative pricing: if a price changed since the item was
+        // scanned, update the cart lines to the server price and ask the
+        // cashier to re-check the total (nothing is charged).
+        if (invoice?.code === 'PRICE_CHANGED' && Array.isArray(invoice.items)) {
+          setCart(prev =>
+            prev.map(line => {
+              const hit = invoice.items.find(
+                (i: any) => i.productId === line.productId && i.batchId === line.batchId
+              );
+              return hit
+                ? {
+                    ...line,
+                    unitPrice: hit.unitPrice,
+                    // keep a fixed discount from exceeding the refreshed line gross
+                    discountAmount: Math.min(
+                      line.discountAmount,
+                      Number((line.quantity * hit.unitPrice).toFixed(2))
+                    )
+                  }
+                : line;
+            })
+          );
+          showNotification(invoice.message || 'Prices updated from server — please re-check the total and submit again.', 'info');
+          return;
+        }
         throw new Error(invoice.message || invoice.error || 'Checkout failed');
       }
 
