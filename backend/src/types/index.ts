@@ -158,6 +158,7 @@ export interface Invoice {
   patientId?: string;
   patientName?: string;
   doctorLicense?: string;
+  doctorName?: string;
   prescriptionNumber?: string;
   subtotal: number;
   discountAmount: number;
@@ -167,6 +168,7 @@ export interface Invoice {
   paymentMethod: PaymentMethod;
   tenderedAmount: number;
   changeDue: number;
+  paymentReference?: string;
   status: InvoiceStatus;
   items: InvoiceItem[];
   createdAt: string;

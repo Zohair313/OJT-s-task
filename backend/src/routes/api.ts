@@ -4,8 +4,8 @@ import { fefoService } from '../services/fefoService.js';
 import { checkoutService } from '../services/checkoutService.js';
 import { reconciliationService } from '../services/reconciliationService.js';
 import { concurrencyTestService } from '../services/concurrencyTestService.js';
-import { dbStore, isPgConnected, pgPool } from '../db/database.js';
-import { Invoice } from '../types/index.js';
+import { dbStore, isPgConnected } from '../db/database.js';
+import { findInvoiceByCode } from '../services/invoiceLookupService.js';
 
 export const apiRouter = Router();
 
@@ -93,78 +93,11 @@ apiRouter.get('/scanner/lookup/:code', async (req: Request, res: Response) => {
     const tenantId = getTenantId(req);
     const start = performance.now();
     const rawCode = req.params.code.trim();
-    const cleanDigits = rawCode.replace(/[^0-9]/g, '');
 
-    // 1. Check if scanned barcode is an Invoice Receipt (e.g. starts with INV- or numeric invoice sequence)
-    let matchedInvoice = Array.from(dbStore.invoices.values()).find(
-      inv => inv.id === rawCode ||
-             inv.invoiceNumber.toLowerCase() === rawCode.toLowerCase() ||
-             (cleanDigits.length >= 8 && inv.invoiceNumber.replace(/[^0-9]/g, '').includes(cleanDigits))
-    );
+    // 1. Invoice Receipt? (id / invoice number / >=8-digit partial match —
+    //    cache first, then full PG hydrate incl. items + payment details)
+    const matchedInvoice = await findInvoiceByCode(rawCode);
 
-    if (!matchedInvoice && isPgConnected) {
-      try {
-        const invRes = await pgPool.query(
-          `SELECT * FROM invoices 
-           WHERE id = $1 
-              OR LOWER(invoice_number) = LOWER($1) 
-              OR regexp_replace(invoice_number, '[^0-9]', '', 'g') LIKE '%' || $2 || '%' 
-           ORDER BY created_at DESC LIMIT 1`,
-          [rawCode, cleanDigits.length >= 8 ? cleanDigits : 'NONE']
-        );
-        if (invRes.rows.length > 0) {
-          const row = invRes.rows[0];
-          const itemsRes = await pgPool.query(
-            `SELECT ii.*, p.name as product_name, b.batch_number, b.expiry_date
-             FROM invoice_items ii
-             LEFT JOIN products p ON ii.product_id = p.id
-             LEFT JOIN batches b ON ii.batch_id = b.id
-             WHERE ii.invoice_id = $1`,
-            [row.id]
-          );
-
-          const loadedInvoice: Invoice = {
-            id: row.id,
-            tenantId: row.tenant_id,
-            cashierId: row.cashier_id,
-            drawerId: row.drawer_id,
-            invoiceNumber: row.invoice_number,
-            patientId: row.patient_id || undefined,
-            doctorLicense: row.doctor_id || undefined,
-            prescriptionNumber: row.prescription_number || undefined,
-            subtotal: Number(row.subtotal),
-            discountAmount: Number(row.discount_amount),
-            taxAmount: Number(row.tax_amount),
-            roundOff: Number(row.round_off),
-            grandTotal: Number(row.grand_total),
-            paymentMethod: 'CASH',
-            tenderedAmount: Number(row.grand_total),
-            changeDue: 0,
-            status: row.status,
-            items: itemsRes.rows.map(it => ({
-              id: it.id,
-              invoiceId: it.invoice_id,
-              productId: it.product_id,
-              productName: it.product_name || 'Item',
-              batchId: it.batch_id,
-              batchNumber: it.batch_number || 'N/A',
-              expiryDate: it.expiry_date || 'N/A',
-              quantity: it.quantity,
-              unitPrice: Number(it.unit_price),
-              taxRate: Number(it.tax_rate),
-              taxAmount: Number(it.tax_amount),
-              discountAmount: Number(it.discount_amount),
-              lineTotal: Number(it.line_total)
-            })),
-            createdAt: row.created_at
-          };
-          matchedInvoice = loadedInvoice;
-          dbStore.invoices.set(loadedInvoice.id, loadedInvoice);
-        }
-      } catch (err) {
-        console.warn('PG invoice lookup fallback warning:', err);
-      }
-    }
 
     if (matchedInvoice) {
       const tenant = dbStore.tenants.get(matchedInvoice.tenantId);
@@ -248,6 +181,33 @@ apiRouter.post('/test/concurrency-race', async (req: Request, res: Response) => 
     const tenantId = getTenantId(req);
     const summary = await concurrencyTestService.executeRaceTest(tenantId);
     res.json(summary);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6b. Admin Slip Lookup — full invoice (header + items + payment + clinical) by slip/invoice number
+apiRouter.get('/invoices/lookup', async (req: Request, res: Response) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (!q) {
+      return res.status(400).json({ error: 'BAD_REQUEST', message: 'Missing ?q= invoice number or slip code' });
+    }
+    const invoice = await findInvoiceByCode(q);
+    if (!invoice) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: `No invoice found for '${q}'` });
+    }
+    const tenant = dbStore.tenants.get(invoice.tenantId);
+    res.json({
+      invoice,
+      store: {
+        name: tenant?.name || 'Retail Mart',
+        taxIdentifier: tenant?.taxIdentifier || 'TX-9901',
+        address: tenant?.address || 'Store Location',
+        phone: tenant?.phone || '555-0100',
+        isPharmacy: tenant?.domainType === 'HOSPITAL_PHARMACY'
+      }
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
