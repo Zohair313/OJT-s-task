@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarcodeSvg } from './BarcodeSvg';
 import { ThemeToggle } from './ThemeToggle';
+import { InvoiceLookup } from './InvoiceLookup';
 import {
   Package,
   AlertTriangle,
@@ -15,6 +16,7 @@ import {
   Database,
   Building2,
   ShoppingCart,
+  FileText,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -65,6 +67,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'IN_STOCK'>('ALL');
+
+  // Admin section: product catalog vs invoice/slip lookup
+  const [adminSection, setAdminSection] = useState<'CATALOG' | 'INVOICES'>('CATALOG');
   
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -458,7 +463,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <span className="font-bold text-base tracking-tight text-slate-900 dark:text-slate-100">PulsePOS</span>
           </div>
 
-          {/* Navigation Switcher */}
+          {/* Navigation Switcher: POS / Catalog / Invoice Lookup */}
           <div className="flex items-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 gap-1">
             <button
               onClick={onBackToPos}
@@ -468,10 +473,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <span>POS Counter</span>
             </button>
             <button
-              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-600 transition"
+              onClick={() => setAdminSection('CATALOG')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs rounded-md transition ${
+                adminSection === 'CATALOG'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-600 font-semibold'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium'
+              }`}
             >
-              <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <Building2 className={`w-3.5 h-3.5 ${adminSection === 'CATALOG' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`} />
               <span>Product Admin</span>
+            </button>
+            <button
+              onClick={() => setAdminSection('INVOICES')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs rounded-md transition ${
+                adminSection === 'INVOICES'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-600 font-semibold'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium'
+              }`}
+            >
+              <FileText className={`w-3.5 h-3.5 ${adminSection === 'INVOICES' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`} />
+              <span>Invoice Lookup</span>
             </button>
           </div>
 
@@ -479,7 +500,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {/* Page Title */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-bold text-slate-800 dark:text-slate-200">Catalog Management</span>
+            <span className="font-bold text-slate-800 dark:text-slate-200">
+              {adminSection === 'CATALOG' ? 'Catalog Management' : 'Invoice Lookup'}
+            </span>
             <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[11px] border border-slate-200 dark:border-slate-700">/admin</span>
           </div>
         </div>
@@ -513,29 +536,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
           </div>
 
-          {/* Add Product Button */}
-          <button
-            onClick={handleOpenAdd}
-            className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Product</span>
-          </button>
+          {/* Add Product + Refresh (catalog section only) */}
+          {adminSection === 'CATALOG' && (
+            <>
+              <button
+                onClick={handleOpenAdd}
+                className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Product</span>
+              </button>
 
-          {/* Refresh Data */}
-          <button
-            onClick={loadData}
-            title="Refresh Catalog Data"
-            className="p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-lg transition shadow-xs"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
-          </button>
+              <button
+                onClick={loadData}
+                title="Refresh Catalog Data"
+                className="p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-lg transition shadow-xs"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+              </button>
+            </>
+          )}
         </div>
       </header>
 
       {/* 2. MAIN WORKSPACE */}
       <div className="flex-1 flex flex-col overflow-hidden p-6 gap-5 w-full max-w-[2200px] mx-auto">
-        
+        {adminSection === 'INVOICES' ? (
+          <InvoiceLookup />
+        ) : (
+        <>
+
         {/* KPI Metric Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex items-center justify-between shadow-xs">
@@ -922,6 +952,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* ========================================================================= */}

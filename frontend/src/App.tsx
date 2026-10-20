@@ -114,6 +114,7 @@ export function App() {
 
   // Modals
   const [completedInvoice, setCompletedInvoice] = useState<any | null>(null);
+  const [completedStore, setCompletedStore] = useState<any | null>(null);
   const [showZReportModal, setShowZReportModal] = useState<boolean>(false);
   const [showConcurrencyModal, setShowConcurrencyModal] = useState<boolean>(false);
   const [showSimulatorModal, setShowSimulatorModal] = useState<boolean>(false);
@@ -182,10 +183,11 @@ export function App() {
         return;
       }
 
-      // If scanned barcode is an invoice receipt, immediately display the receipt
+      // If scanned barcode is an invoice receipt, immediately display the full slip
       if (data.type === 'INVOICE' && data.invoice) {
         playScannerBeep(true);
         setCompletedInvoice(data.invoice);
+        setCompletedStore(data.store || null);
         const latency = Math.round(performance.now() - start);
         setLastScanLatency(latency);
         showNotification(`Loaded Receipt #${data.invoice.invoiceNumber} (${latency}ms)`, 'success');
@@ -522,8 +524,10 @@ export function App() {
       }
 
       setCart([]);
+      setSelectedCartId(null);
       setTenderedAmount('');
       setCompletedInvoice(invoice);
+      setCompletedStore(null); // checkout receipt uses current tenant's store details
       showNotification(`Invoice #${invoice.invoiceNumber} committed successfully.`, 'success');
 
       // Refresh active drawer data after sale
@@ -1296,7 +1300,7 @@ export function App() {
       {completedInvoice && (
         <ThermalReceipt
           invoice={completedInvoice}
-          store={{
+          store={completedStore ?? {
             name: isPharmacy ? 'St. Jude Memorial Hospital Pharmacy' : 'Metro Supermarket Flagship',
             taxIdentifier: isPharmacy ? 'TX-MED-44102' : 'TX-RET-99201',
             address: isPharmacy ? '500 Medical Center Blvd, Chicago, IL' : '100 Broadway, New York, NY',
