@@ -4,6 +4,23 @@ import { fefoService } from './fefoService.js';
 import { reconciliationService } from './reconciliationService.js';
 import { CheckoutRequestDTO, Invoice, InvoiceItem, PaymentMethod } from '../types/index.js';
 
+/**
+ * Sync in-memory cache stocks with locked DB quantities.
+ * Used when the DB-level FOR UPDATE check finds stock the cache believed was
+ * available (stale cache from another process/instance). Keeps the cache
+ * truthful without requiring a server restart.
+ */
+function syncCacheFromLockedQty(lockedQty: Map<string, number>): void {
+  for (const [batchId, dbQty] of lockedQty) {
+    const cached = dbStore.stocks.get(batchId);
+    if (cached && cached.quantity !== dbQty) {
+      console.warn(`⚠️  [CACHE-SYNC] Batch '${batchId}' cache=${cached.quantity} but DB=${dbQty}. Syncing.`);
+      cached.quantity = dbQty;
+      cached.updatedAt = new Date().toISOString();
+    }
+  }
+}
+
 export class CheckoutService {
   /**
    * Atomic ACID Checkout Pipeline with Pessimistic Row-Level Locking.
