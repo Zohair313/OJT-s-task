@@ -36,14 +36,21 @@ async function main() {
   await initializeDatabase();
   console.log('─'.repeat(64));
 
-  // 1. Race batch stock in the DATABASE (source of truth)
-  const raceStock = await pgPool.query(
-    `SELECT s.quantity FROM inventory_stocks s
-     JOIN batches b ON b.id = s.batch_id
-     WHERE b.batch_number = 'LOT-RACE-T-RETAIL-001'`
+  // 1. Race batch stock in the DATABASE (source of truth) — diagnostic first
+  const raceBatch = await pgPool.query(
+    `SELECT b.id, b.batch_number FROM batches b WHERE b.batch_number = $1`,
+    ['LOT-RACE-T-RETAIL-001']
   );
-  const dbQty = raceStock.rowCount ? parseInt(raceStock.rows[0].quantity, 10) : -1;
-  check('Race batch stock is 0 in PostgreSQL (not just cache)', dbQty === 0, `db quantity=${dbQty}`);
+  if (raceBatch.rowCount === 0) {
+    check('Race batch exists in PostgreSQL', false, 'batch row not found (race test may not have persisted)');
+  } else {
+    const raceStock = await pgPool.query(
+      `SELECT quantity FROM inventory_stocks WHERE batch_id = $1`,
+      [raceBatch.rows[0].id]
+    );
+    const dbQty = raceStock.rowCount ? parseInt(raceStock.rows[0].quantity, 10) : -1;
+    check('Race batch stock is 0 in PostgreSQL (not just cache)', dbQty === 0, `db quantity=${dbQty}`);
+  }
 
   // 2. Negative quantity rejected
   const neg = await api('POST', '/checkout/commit', {
