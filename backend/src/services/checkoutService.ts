@@ -16,6 +16,23 @@ export class CheckoutService {
       throw { status: 400, message: 'Cart cannot be empty for checkout' };
     }
 
+    // 0. Strict line-item validation (guards against negative-quantity stock inflation)
+    for (const item of items) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        throw {
+          status: 400,
+          code: 'INVALID_QUANTITY',
+          message: `Invalid quantity '${item.quantity}' for product '${item.productId}'. Quantity must be a positive whole number.`
+        };
+      }
+      if (item.discountAmount !== undefined && (!isFinite(item.discountAmount) || item.discountAmount < 0)) {
+        throw { status: 400, message: `Invalid discount amount for product '${item.productId}'.` };
+      }
+      if (item.unitPrice !== undefined && (!isFinite(item.unitPrice) || item.unitPrice < 0)) {
+        throw { status: 400, message: `Invalid unit price for product '${item.productId}'.` };
+      }
+    }
+
     // 1. Verify Cash Drawer is Active with automatic self-healing fallback
     let drawer = drawerId ? dbStore.cashDrawers.get(drawerId) : undefined;
     if (!drawer || drawer.status !== 'OPEN') {
@@ -190,33 +207,14 @@ export class CheckoutService {
       }
       const changeDue = Number(Math.max(0, tendered - grandTotal).toFixed(2));
 
-      // 6. ATOMIC COMMIT: Deduct Inventory & Append Stock Movement Audit
-      for (const line of resolvedLines) {
-        const stock = dbStore.stocks.get(line.batchId)!;
-        stock.quantity -= line.quantity;
-        stock.updatedAt = new Date().toISOString();
-
-        dbStore.stockMovements.push({
-          id: uuidv4(),
-          tenantId,
-          batchId: line.batchId,
-          invoiceId,
-          movementType: 'SALE_DEDUCTION',
-          quantityChanged: -line.quantity,
-          quantityAfter: stock.quantity,
-          referenceNote: `POS Sale to Invoice #${invoiceId.slice(0, 8)}`,
-          createdAt: new Date().toISOString()
-        });
-      }
-
-      // 7. Assemble Invoice
-      const invoiceNumber = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+      // 6. Assemble Invoice (cache commit is DEFERRED until the DB transaction succeeds)
+      const invoiceNumberPrefix = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
       const invoice: Invoice = {
         id: invoiceId,
         tenantId,
         cashierId,
-        drawerId,
-        invoiceNumber,
+        drawerId: drawer.id,
+        invoiceNumber: '',
         patientId: clinical?.patientMrn,
         patientName: clinical?.patientName,
         doctorLicense: clinical?.doctorLicense,
@@ -234,104 +232,192 @@ export class CheckoutService {
         createdAt: new Date().toISOString()
       };
 
-      dbStore.invoices.set(invoiceId, invoice);
-      invoiceItems.forEach(item => dbStore.invoiceItems.set(item.id, item));
+      // 7. PERSIST TO POSTGRESQL FIRST — source of truth, real ACID transaction.
+      // Row-level locks (SELECT ... FOR UPDATE) are taken HERE so the guarantee
+      // holds even with multiple Node instances pointing at the same database.
+      let invoiceNumber = '';
+      let retryCount = 0;
+      const MAX_INVOICE_RETRIES = 3;
 
-      // 8. Persist to PostgreSQL in an ACID transaction
       if (isPgConnected) {
         const client = await pgPool.connect();
         try {
-          await client.query('BEGIN');
+          let committed = false;
+          while (!committed) {
+            invoiceNumber = `${invoiceNumberPrefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+            await client.query('BEGIN');
 
-          // Ensure drawer exists in cash_drawers if not present
-          const drawerCheck = await client.query('SELECT 1 FROM cash_drawers WHERE id = $1', [drawerId]);
-          if (drawerCheck.rowCount === 0) {
-            await client.query(`
-              INSERT INTO cash_drawers (id, tenant_id, cashier_id, terminal_identifier, opened_at, opening_float, total_cash_drops, status)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-              ON CONFLICT (id) DO NOTHING
-            `, [
-              drawer.id, drawer.tenantId, drawer.cashierId, drawer.terminalIdentifier,
-              drawer.openedAt, drawer.openingFloat, drawer.totalCashDrops, drawer.status
-            ]);
+            try {
+              // --- PESSIMISTIC ROW-LEVEL LOCKING (sorted order = deadlock-free) ---
+              const sortedBatchIds = [...new Set(resolvedLines.map(l => l.batchId))].sort();
+              const lockRes = await client.query(
+                `SELECT batch_id, quantity
+                 FROM inventory_stocks
+                 WHERE batch_id = ANY($1::varchar[])
+                 ORDER BY batch_id
+                 FOR UPDATE`,
+                [sortedBatchIds]
+              );
+
+              // Re-verify stock invariants against the LOCKED database rows
+              const lockedQty = new Map<string, number>(
+                lockRes.rows.map((r: any) => [r.batch_id, parseInt(r.quantity, 10)])
+              );
+              for (const line of resolvedLines) {
+                const dbQty = lockedQty.get(line.batchId) ?? 0;
+                if (dbQty < line.quantity) {
+                  throw {
+                    status: 409,
+                    code: 'CONCURRENCY_STOCK_DEPLETED',
+                    message: `Checkout aborted: Batch '${line.batchNumber}' has only ${dbQty} units remaining in the database. Another counter checked out concurrently.`
+                  };
+                }
+              }
+
+              // Ensure drawer exists in cash_drawers if not present
+              const drawerCheck = await client.query('SELECT 1 FROM cash_drawers WHERE id = $1', [drawer.id]);
+              if (drawerCheck.rowCount === 0) {
+                await client.query(`
+                  INSERT INTO cash_drawers (id, tenant_id, cashier_id, terminal_identifier, opened_at, opening_float, total_cash_drops, status)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                  ON CONFLICT (id) DO NOTHING
+                `, [
+                  drawer.id, drawer.tenantId, drawer.cashierId, drawer.terminalIdentifier,
+                  drawer.openedAt, drawer.openingFloat, drawer.totalCashDrops, drawer.status
+                ]);
+              }
+
+              // Check if patient exists
+              let matchedPatientId: string | null = null;
+              if (clinical?.patientMrn) {
+                const pCheck = await client.query('SELECT id FROM patients WHERE id = $1 OR mrn = $2 LIMIT 1', [clinical.patientMrn, clinical.patientMrn]);
+                if (pCheck.rowCount && pCheck.rowCount > 0) matchedPatientId = pCheck.rows[0].id;
+              }
+              let matchedDoctorId: string | null = null;
+              if (clinical?.doctorLicense) {
+                const dCheck = await client.query('SELECT id FROM doctors WHERE id = $1 OR license_number = $2 LIMIT 1', [clinical.doctorLicense, clinical.doctorLicense]);
+                if (dCheck.rowCount && dCheck.rowCount > 0) matchedDoctorId = dCheck.rows[0].id;
+              }
+
+              await client.query(`
+                INSERT INTO invoices (
+                  id, tenant_id, cashier_id, drawer_id, invoice_number, patient_id, doctor_id,
+                  prescription_number, subtotal, discount_amount, tax_amount, round_off,
+                  grand_total, status, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+              `, [
+                invoice.id, invoice.tenantId, invoice.cashierId, invoice.drawerId, invoiceNumber,
+                matchedPatientId, matchedDoctorId, invoice.prescriptionNumber || null,
+                invoice.subtotal, invoice.discountAmount, invoice.taxAmount, invoice.roundOff,
+                invoice.grandTotal, invoice.status, invoice.createdAt
+              ]);
+
+              // Insert Invoice Items, decrement stock under the held lock, audit movement
+              for (const item of invoiceItems) {
+                await client.query(`
+                  INSERT INTO invoice_items (
+                    id, invoice_id, product_id, batch_id, quantity, unit_price,
+                    tax_rate, tax_amount, discount_amount, line_total, created_at
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                `, [
+                  item.id, item.invoiceId, item.productId, item.batchId, item.quantity, item.unitPrice,
+                  item.taxRate, item.taxAmount, item.discountAmount, item.lineTotal, invoice.createdAt
+                ]);
+
+                // Guarded decrement: fails loudly on oversell instead of clamping to 0.
+                // Row is already locked by FOR UPDATE, so this cannot race.
+                const upd = await client.query(`
+                  UPDATE inventory_stocks
+                  SET quantity = quantity - $1, updated_at = NOW()
+                  WHERE batch_id = $2 AND quantity >= $1
+                  RETURNING quantity
+                `, [item.quantity, item.batchId]);
+
+                if (upd.rowCount === 0) {
+                  throw {
+                    status: 409,
+                    code: 'CONCURRENCY_STOCK_DEPLETED',
+                    message: `Checkout aborted: Batch '${item.batchNumber}' went out of stock in the database mid-transaction.`
+                  };
+                }
+                const dbQuantityAfter = parseInt(upd.rows[0].quantity, 10);
+
+                await client.query(`
+                  INSERT INTO stock_movements (
+                    id, tenant_id, batch_id, invoice_id, movement_type,
+                    quantity_changed, quantity_after, reference_note, created_at
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                `, [
+                  uuidv4(), tenantId, item.batchId, invoiceId, 'SALE_DEDUCTION',
+                  -item.quantity, dbQuantityAfter, `POS Sale to Invoice #${invoiceNumber}`,
+                  invoice.createdAt
+                ]);
+              }
+
+              // Insert Payment
+              await client.query(`
+                INSERT INTO payments (
+                  id, invoice_id, payment_method, amount, tendered_amount, change_due, transaction_reference, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+              `, [
+                uuidv4(), invoice.id, invoice.paymentMethod, invoice.grandTotal,
+                invoice.tenderedAmount || invoice.grandTotal, invoice.changeDue,
+                `POS-TXN-${invoiceNumber}`, invoice.createdAt
+              ]);
+
+              await client.query('COMMIT');
+              committed = true;
+            } catch (pgErr: any) {
+              await client.query('ROLLBACK').catch(() => {});
+              // Unique invoice_number collision -> regenerate and retry the whole transaction
+              if (pgErr?.code === '23505' && pgErr?.constraint === 'uq_tenant_invoice_number' && retryCount < MAX_INVOICE_RETRIES) {
+                retryCount++;
+                continue;
+              }
+              throw pgErr;
+            }
           }
-
-          // Check if patient exists
-          let matchedPatientId: string | null = null;
-          if (clinical?.patientMrn) {
-            const pCheck = await client.query('SELECT id FROM patients WHERE id = $1 OR mrn = $2 LIMIT 1', [clinical.patientMrn, clinical.patientMrn]);
-            if (pCheck.rowCount && pCheck.rowCount > 0) matchedPatientId = pCheck.rows[0].id;
-          }
-          let matchedDoctorId: string | null = null;
-          if (clinical?.doctorLicense) {
-            const dCheck = await client.query('SELECT id FROM doctors WHERE id = $1 OR license_number = $2 LIMIT 1', [clinical.doctorLicense, clinical.doctorLicense]);
-            if (dCheck.rowCount && dCheck.rowCount > 0) matchedDoctorId = dCheck.rows[0].id;
-          }
-
-          await client.query(`
-            INSERT INTO invoices (
-              id, tenant_id, cashier_id, drawer_id, invoice_number, patient_id, doctor_id,
-              prescription_number, subtotal, discount_amount, tax_amount, round_off,
-              grand_total, status, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-          `, [
-            invoice.id, invoice.tenantId, invoice.cashierId, invoice.drawerId, invoice.invoiceNumber,
-            matchedPatientId, matchedDoctorId, invoice.prescriptionNumber || null,
-            invoice.subtotal, invoice.discountAmount, invoice.taxAmount, invoice.roundOff,
-            invoice.grandTotal, invoice.status, invoice.createdAt
-          ]);
-
-          // Insert Invoice Items & Update Inventory Stock
-          for (const item of invoiceItems) {
-            await client.query(`
-              INSERT INTO invoice_items (
-                id, invoice_id, product_id, batch_id, quantity, unit_price,
-                tax_rate, tax_amount, discount_amount, line_total, created_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            `, [
-              item.id, item.invoiceId, item.productId, item.batchId, item.quantity, item.unitPrice,
-              item.taxRate, item.taxAmount, item.discountAmount, item.lineTotal, invoice.createdAt
-            ]);
-
-            await client.query(`
-              UPDATE inventory_stocks
-              SET quantity = GREATEST(0, quantity - $1), updated_at = NOW()
-              WHERE batch_id = $2
-            `, [item.quantity, item.batchId]);
-
-            const currentStock = dbStore.stocks.get(item.batchId)?.quantity ?? 0;
-
-            await client.query(`
-              INSERT INTO stock_movements (
-                id, tenant_id, batch_id, invoice_id, movement_type,
-                quantity_changed, quantity_after, reference_note, created_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            `, [
-              uuidv4(), tenantId, item.batchId, invoiceId, 'SALE_DEDUCTION',
-              -item.quantity, currentStock, `POS Sale to Invoice #${invoiceNumber}`,
-              invoice.createdAt
-            ]);
-          }
-
-          // Insert Payment
-          await client.query(`
-            INSERT INTO payments (
-              id, invoice_id, payment_method, amount, tendered_amount, change_due, transaction_reference, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          `, [
-            uuidv4(), invoice.id, invoice.paymentMethod, invoice.grandTotal,
-            invoice.tenderedAmount || invoice.grandTotal, invoice.changeDue,
-            `POS-TXN-${invoice.invoiceNumber}`, invoice.createdAt
-          ]);
-
-          await client.query('COMMIT');
-        } catch (pgErr) {
-          await client.query('ROLLBACK');
-          console.error('❌ [POSTGRESQL] Error committing checkout transaction to database:', pgErr);
+          invoice.invoiceNumber = invoiceNumber;
+        } catch (pgErr: any) {
+          // NEVER return 200 for an unpersisted sale — propagate a real failure
+          console.error('❌ [POSTGRESQL] Checkout transaction failed and was rolled back:', pgErr);
+          if (pgErr?.status) throw pgErr; // domain error (e.g. 409 stock depleted)
+          throw {
+            status: 503,
+            code: 'DB_TRANSACTION_FAILED',
+            message: 'Checkout could not be persisted to the database and was fully rolled back. No sale was recorded.'
+          };
         } finally {
           client.release();
         }
+      } else {
+        // Fallback mode (DB offline): in-memory ACID engine only.
+        // Locks are already held here, so the mutex guarantees single-process safety.
+        invoiceNumber = `${invoiceNumberPrefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+        invoice.invoiceNumber = invoiceNumber;
       }
+
+      // 8. DATABASE COMMITTED — now mirror into the in-memory cache (single writer under lock)
+      for (const line of resolvedLines) {
+        const stock = dbStore.stocks.get(line.batchId)!;
+        stock.quantity -= line.quantity;
+        stock.updatedAt = new Date().toISOString();
+
+        dbStore.stockMovements.push({
+          id: uuidv4(),
+          tenantId,
+          batchId: line.batchId,
+          invoiceId,
+          movementType: 'SALE_DEDUCTION',
+          quantityChanged: -line.quantity,
+          quantityAfter: stock.quantity,
+          referenceNote: `POS Sale to Invoice #${invoiceNumber}`,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      dbStore.invoices.set(invoiceId, invoice);
+      invoiceItems.forEach(item => dbStore.invoiceItems.set(item.id, item));
 
       return invoice;
     } finally {

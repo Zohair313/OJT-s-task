@@ -43,6 +43,7 @@ export interface Supplier {
   contactPerson?: string;
   phone?: string;
   email?: string;
+  address?: string;
 }
 
 export interface Product {

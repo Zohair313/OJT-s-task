@@ -157,6 +157,36 @@ export class PostgreSQLACIDStore {
         });
       }
 
+      // 5b. Suppliers (previously never loaded — supplier lookups were always empty)
+      const supRes = await client.query('SELECT * FROM suppliers');
+      for (const r of supRes.rows) {
+        this.suppliers.set(r.id, {
+          id: r.id,
+          tenantId: r.tenant_id,
+          name: r.name,
+          contactPerson: r.contact_person,
+          phone: r.phone,
+          email: r.email,
+          address: r.address
+        });
+      }
+
+      // 5c. Stock Movements (bounded audit trail: last 5000 to cap memory)
+      const mvRes = await client.query(
+        'SELECT * FROM stock_movements ORDER BY created_at DESC LIMIT 5000'
+      );
+      this.stockMovements = mvRes.rows.reverse().map((r: any) => ({
+        id: r.id,
+        tenantId: r.tenant_id,
+        batchId: r.batch_id,
+        invoiceId: r.invoice_id,
+        movementType: r.movement_type,
+        quantityChanged: parseInt(r.quantity_changed, 10) || 0,
+        quantityAfter: parseInt(r.quantity_after, 10) || 0,
+        referenceNote: r.reference_note,
+        createdAt: r.created_at
+      }));
+
       // 6. Cash Drawers
       const dRes = await client.query('SELECT * FROM cash_drawers ORDER BY opened_at DESC');
       for (const r of dRes.rows) {
@@ -174,35 +204,145 @@ export class PostgreSQLACIDStore {
         });
       }
 
-      // 7. Patients & Doctors
-      const patRes = await client.query('SELECT * FROM patients');
-      for (const r of patRes.rows) {
-        this.patients.set(r.id, {
-          id: r.id,
-          tenantId: r.tenant_id,
-          mrn: r.mrn,
-          fullName: r.full_name,
-          phone: r.phone,
-          gender: r.gender,
-          dateOfBirth: r.date_of_birth
-        });
-      }
+      // 7. Patients, Doctors & Sales History (invoices, payments, z-reports)
+      // Rehydrated after restart — previously these maps were cleared but never
+      // re-populated, wiping receipt lookups and Z-Reports on every restart.
+      await this.loadSalesHistoryFromPg(client);
 
-      const docRes = await client.query('SELECT * FROM doctors');
-      for (const r of docRes.rows) {
-        this.doctors.set(r.id, {
-          id: r.id,
-          tenantId: r.tenant_id,
-          licenseNumber: r.license_number,
-          fullName: r.full_name,
-          specialization: r.specialization,
-          phone: r.phone
-        });
-      }
-
-      console.log('\x1b[32m%s\x1b[0m', `✅ [POSTGRESQL] Loaded ${this.products.size} products, ${this.batches.size} batches, ${this.categories.size} categories from PostgreSQL database.`);
+      console.log('\x1b[32m%s\x1b[0m', `✅ [POSTGRESQL] Loaded ${this.products.size} products, ${this.batches.size} batches, ${this.categories.size} categories, ${this.invoices.size} invoices from PostgreSQL database.`);
     } finally {
       client.release();
+    }
+  }
+
+  /**
+   * Reload sales history (invoices, invoice items, payments, z-reports) from PostgreSQL.
+   * Previously these maps were cleared but never re-populated, so every server restart
+   * wiped receipt lookups and Z-Report reconciliation.
+   */
+  private async loadSalesHistoryFromPg(client: { query: (text: string, params?: any[]) => Promise<any> }) {
+    // Patients & Doctors (needed to hydrate invoice clinical fields)
+    const patRes = await client.query('SELECT * FROM patients');
+    for (const r of patRes.rows) {
+      this.patients.set(r.id, {
+        id: r.id,
+        tenantId: r.tenant_id,
+        mrn: r.mrn,
+        fullName: r.full_name,
+        phone: r.phone,
+        gender: r.gender,
+        dateOfBirth: r.date_of_birth
+      });
+    }
+
+    const docRes = await client.query('SELECT * FROM doctors');
+    for (const r of docRes.rows) {
+      this.doctors.set(r.id, {
+        id: r.id,
+        tenantId: r.tenant_id,
+        licenseNumber: r.license_number,
+        fullName: r.full_name,
+        specialization: r.specialization,
+        phone: r.phone
+      });
+    }
+
+    // Invoices + Invoice Items + Payments (bounded to recent 2000 invoices)
+    const invRes = await client.query(
+      'SELECT * FROM invoices ORDER BY created_at DESC LIMIT 2000'
+    );
+    const invIds = invRes.rows.map((r: any) => r.id);
+
+    const itemsByInvoice = new Map<string, InvoiceItem[]>();
+    const paymentsByInvoice = new Map<string, any>();
+    if (invIds.length > 0) {
+      const itRes = await client.query(
+        'SELECT * FROM invoice_items WHERE invoice_id = ANY($1::varchar[]) ORDER BY created_at ASC',
+        [invIds]
+      );
+      for (const r of itRes.rows) {
+        const item: InvoiceItem = {
+          id: r.id,
+          invoiceId: r.invoice_id,
+          productId: r.product_id,
+          batchId: r.batch_id,
+          productName: r.product_name ?? '',
+          batchNumber: r.batch_number ?? '',
+          expiryDate: r.expiry_date ? new Date(r.expiry_date).toISOString().split('T')[0] : '',
+          quantity: parseInt(r.quantity, 10) || 0,
+          unitPrice: parseFloat(r.unit_price) || 0,
+          taxRate: parseFloat(r.tax_rate) || 0,
+          taxAmount: parseFloat(r.tax_amount) || 0,
+          discountAmount: parseFloat(r.discount_amount) || 0,
+          lineTotal: parseFloat(r.line_total) || 0
+        };
+        const list = itemsByInvoice.get(r.invoice_id) || [];
+        list.push(item);
+        itemsByInvoice.set(r.invoice_id, list);
+        this.invoiceItems.set(item.id, item);
+      }
+
+      const payRes = await client.query(
+        'SELECT * FROM payments WHERE invoice_id = ANY($1::varchar[])',
+        [invIds]
+      );
+      for (const r of payRes.rows) {
+        paymentsByInvoice.set(r.invoice_id, {
+          method: r.payment_method,
+          tenderedAmount: parseFloat(r.tendered_amount) || 0,
+          changeDue: parseFloat(r.change_due) || 0
+        });
+      }
+    }
+
+    for (const r of invRes.rows) {
+      const pay = paymentsByInvoice.get(r.id);
+      const pat = r.patient_id ? this.patients.get(r.patient_id) : undefined;
+      const doc = r.doctor_id ? this.doctors.get(r.doctor_id) : undefined;
+      this.invoices.set(r.id, {
+        id: r.id,
+        tenantId: r.tenant_id,
+        cashierId: r.cashier_id,
+        drawerId: r.drawer_id,
+        invoiceNumber: r.invoice_number,
+        patientId: pat?.mrn,
+        patientName: pat?.fullName,
+        doctorLicense: doc?.licenseNumber,
+        prescriptionNumber: r.prescription_number,
+        subtotal: parseFloat(r.subtotal) || 0,
+        discountAmount: parseFloat(r.discount_amount) || 0,
+        taxAmount: parseFloat(r.tax_amount) || 0,
+        roundOff: parseFloat(r.round_off) || 0,
+        grandTotal: parseFloat(r.grand_total) || 0,
+        paymentMethod: pay?.method ?? r.payment_method ?? 'CASH',
+        tenderedAmount: pay?.tenderedAmount,
+        changeDue: pay?.changeDue,
+        status: r.status,
+        items: itemsByInvoice.get(r.id) || [],
+        createdAt: r.created_at
+      });
+    }
+
+    // Z-Reports (reloaded so drawer reconciliation survives restarts)
+    const zRes = await client.query('SELECT * FROM z_reports ORDER BY generated_at DESC LIMIT 500');
+    for (const r of zRes.rows) {
+      this.zReports.set(r.id, {
+        id: r.id,
+        tenantId: r.tenant_id,
+        drawerId: r.drawer_id,
+        reportCode: r.report_code,
+        totalCashSales: parseFloat(r.total_cash_sales) || 0,
+        totalCardSales: parseFloat(r.total_card_sales) || 0,
+        totalUpiSales: parseFloat(r.total_upi_sales) || 0,
+        totalTaxCollected: parseFloat(r.total_tax_collected) || 0,
+        totalDiscountsGiven: parseFloat(r.total_discounts_given) || 0,
+        grossMargin: parseFloat(r.gross_margin) || 0,
+        expectedCashInDrawer: parseFloat(r.expected_cash_in_drawer) || 0,
+        actualCountedCash: parseFloat(r.actual_counted_cash) || 0,
+        cashVariance: parseFloat(r.cash_variance) || 0,
+        discrepancyReason: r.discrepancy_reason || undefined,
+        generatedAt: r.generated_at
+      });
     }
   }
 
