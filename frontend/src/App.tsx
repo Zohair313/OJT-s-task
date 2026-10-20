@@ -100,6 +100,18 @@ export function App() {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CREDIT_CARD' | 'UPI_QR'>('CASH');
   const [tenderedAmount, setTenderedAmount] = useState<string>('');
 
+  // Active cart line (DESIGN.md §7: F8 / +/- / Delete operate on the selected line)
+  const [selectedCartId, setSelectedCartId] = useState<string | null>(null);
+
+  // F8 line-discount modal
+  const [f8Target, setF8Target] = useState<string | null>(null);
+  const [f8Value, setF8Value] = useState('');
+  const [f8Mode, setF8Mode] = useState<'%' | 'FIXED'>('%');
+
+  // System status bar (DESIGN.md §2)
+  const [dbStatus, setDbStatus] = useState<{ ok: boolean; ping: number } | null>(null);
+  const [lastScanCode, setLastScanCode] = useState<string | null>(null);
+
   // Modals
   const [completedInvoice, setCompletedInvoice] = useState<any | null>(null);
   const [showZReportModal, setShowZReportModal] = useState<boolean>(false);
@@ -157,6 +169,7 @@ export function App() {
   const handleBarcodeScanned = async (barcode: string) => {
     const cleanBarcode = (barcode || '').trim();
     if (!cleanBarcode) return;
+    setLastScanCode(cleanBarcode);
 
     const start = performance.now();
     try {
@@ -268,10 +281,37 @@ export function App() {
     enabled: currentView === 'pos'
   });
 
-  // Global Keyboard Shortcuts (F1, F2, F4, F9, F12, Ctrl+K, Esc)
+  // System status bar: DB health ping (DESIGN.md §2)
+  useEffect(() => {
+    if (currentView !== 'pos') return;
+    let cancelled = false;
+    const ping = async () => {
+      const t0 = performance.now();
+      try {
+        const res = await fetch('/api/v1/health');
+        if (!cancelled) setDbStatus({ ok: res.ok, ping: Math.round(performance.now() - t0) });
+      } catch {
+        if (!cancelled) setDbStatus({ ok: false, ping: 0 });
+      }
+    };
+    ping();
+    const id = setInterval(ping, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [currentView]);
+
+  // Global Keyboard Shortcuts (DESIGN.md §7: F1, F2, F4, F8, F9, F12, Esc, +/-, Delete, Ctrl+K)
   useEffect(() => {
     const handleGlobalKeys = (e: KeyboardEvent) => {
       if (currentView !== 'pos') return;
+
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        !!target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
       if (e.key === 'F1') {
         e.preventDefault();
         setShowShortcutsHelp(prev => !prev);
@@ -284,6 +324,15 @@ export function App() {
       } else if (e.key === 'F4') {
         e.preventDefault();
         setIsClinicalOpen(prev => !prev);
+      } else if (e.key === 'F8') {
+        e.preventDefault();
+        if (!selectedCartId) {
+          showNotification('Select a cart line first (click a row), then press F8 for discount.', 'info');
+          return;
+        }
+        setF8Target(selectedCartId);
+        setF8Value('');
+        setF8Mode('%');
       } else if (e.key === 'F9') {
         e.preventDefault();
         setShowZReportModal(true);
@@ -294,27 +343,77 @@ export function App() {
         e.preventDefault();
         setShowSimulatorModal(true);
       } else if (e.key === 'Escape') {
-        setShowSimulatorModal(false);
-        setShowCameraModal(false);
-        setShowConcurrencyModal(false);
-        setShowZReportModal(false);
-        setShowShortcutsHelp(false);
-        setSearchResults([]);
+        const anyModalOpen =
+          showSimulatorModal ||
+          showCameraModal ||
+          showConcurrencyModal ||
+          showZReportModal ||
+          showShortcutsHelp ||
+          !!f8Target;
+        if (anyModalOpen) {
+          setShowSimulatorModal(false);
+          setShowCameraModal(false);
+          setShowConcurrencyModal(false);
+          setShowZReportModal(false);
+          setShowShortcutsHelp(false);
+          setF8Target(null);
+        } else if (cart.length > 0) {
+          setCart([]);
+          setSelectedCartId(null);
+          showNotification('Cart cleared.', 'info');
+        } else {
+          setSearchResults([]);
+        }
+      } else if (!isTyping && selectedCartId) {
+        // Active-line shortcuts (spec: +/- qty, Delete remove)
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          adjustQtyBy(selectedCartId, 1);
+        } else if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          adjustQtyBy(selectedCartId, -1);
+        } else if (e.key === 'Delete') {
+          e.preventDefault();
+          removeCartItem(selectedCartId);
+          setSelectedCartId(null);
+        }
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeys);
     return () => window.removeEventListener('keydown', handleGlobalKeys);
-  }, [cart, tenderedAmount, paymentMethod, activeDrawer]);
+  }, [
+    cart,
+    tenderedAmount,
+    paymentMethod,
+    activeDrawer,
+    selectedCartId,
+    f8Target,
+    showSimulatorModal,
+    showCameraModal,
+    showConcurrencyModal,
+    showZReportModal,
+    showShortcutsHelp,
+    currentView
+  ]);
 
-  // Cart Calculations (Precise Integer Cents)
-  const cartSubtotal = cart.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-  const cartDiscount = cart.reduce((sum, item) => sum + item.discountAmount, 0);
-  const cartTax = cart.reduce((sum, item) => {
-    const taxable = Math.max(0, (item.quantity * item.unitPrice) - item.discountAmount);
-    return sum + (taxable * item.taxRate) / 100;
+  // Cart Calculations (DESIGN.md §4 — integer cents; Grand Total = nearest whole dollar)
+  const subtotalCents = cart.reduce((sum, item) => sum + Math.round(item.quantity * item.unitPrice * 100), 0);
+  const discountCents = cart.reduce((sum, item) => sum + Math.round(item.discountAmount * 100), 0);
+  const taxCents = cart.reduce((sum, item) => {
+    const taxableCents = Math.max(0, Math.round(item.quantity * item.unitPrice * 100) - Math.round(item.discountAmount * 100));
+    return sum + Math.round((taxableCents * item.taxRate) / 100);
   }, 0);
-  const cartGrandTotal = Math.max(0, cartSubtotal - cartDiscount + cartTax);
+  const rawGrandTotalCents = subtotalCents - discountCents + taxCents;
+  // Spec: Grand Total = Round(Raw Grand Total) to the nearest whole dollar
+  const grandTotalCents = Math.round(rawGrandTotalCents / 100) * 100;
+  const roundOffCents = grandTotalCents - rawGrandTotalCents;
+
+  const cartSubtotal = subtotalCents / 100;
+  const cartDiscount = discountCents / 100;
+  const cartTax = taxCents / 100;
+  const cartGrandTotal = grandTotalCents / 100;
+  const cartRoundOff = roundOffCents / 100;
   const totalItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const parsedTender = parseFloat(tenderedAmount);
@@ -335,6 +434,46 @@ export function App() {
 
   const removeCartItem = (cartId: string) => {
     setCart(prev => prev.filter(item => item.cartId !== cartId));
+  };
+
+  // Increment/decrement active line quantity (keyboard +/-)
+  const adjustQtyBy = (cartId: string, delta: number) => {
+    setCart(prev => {
+      const item = prev.find(i => i.cartId === cartId);
+      if (!item) return prev;
+      const next = item.quantity + delta;
+      if (next <= 0) return prev.filter(i => i.cartId !== cartId);
+      return prev.map(i => (i.cartId === cartId ? { ...i, quantity: next } : i));
+    });
+  };
+
+  // F8: apply percentage or fixed discount to the active line
+  const applyLineDiscount = () => {
+    if (!f8Target) return;
+    const line = cart.find(i => i.cartId === f8Target);
+    if (!line) {
+      setF8Target(null);
+      return;
+    }
+    const val = parseFloat(f8Value);
+    if (isNaN(val) || val < 0) {
+      showNotification('Enter a valid discount value.', 'error');
+      return;
+    }
+    const lineGross = line.quantity * line.unitPrice;
+    const discount =
+      f8Mode === '%' ? (lineGross * Math.min(val, 100)) / 100 : Math.min(val, lineGross);
+    const rounded = Number(discount.toFixed(2));
+    setCart(prev =>
+      prev.map(i => (i.cartId === f8Target ? { ...i, discountAmount: rounded } : i))
+    );
+    showNotification(
+      rounded > 0
+        ? `Discount -$${rounded.toFixed(2)} applied to ${line.productName}`
+        : `Discount removed from ${line.productName}`,
+      'success'
+    );
+    setF8Target(null);
   };
 
   // Submit Checkout (ACID Pipeline)
@@ -470,6 +609,20 @@ export function App() {
               <Pill className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>{isPharmacy ? 'FEFO Pharmacy' : 'Retail Mart'}</span>
             </div>
+            {activeDrawer && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-medium shadow-xs">
+                <span className={`w-2 h-2 rounded-full ${activeDrawer.status === 'OPEN' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                <span className="font-mono text-xs">
+                  Drawer {activeDrawer.terminalIdentifier || '#—'} ({activeDrawer.status})
+                </span>
+              </div>
+            )}
+            {activeDrawer?.cashierId && (
+              <span className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                <span>Cashier:</span>
+                <span className="font-mono text-slate-700 dark:text-slate-300">{activeDrawer.cashierId}</span>
+              </span>
+            )}
             {lastScanLatency > 0 && (
               <span className="font-mono text-slate-400 dark:text-slate-500 text-xs">• {lastScanLatency}ms</span>
             )}
@@ -558,10 +711,18 @@ export function App() {
                 }
               }
             }}
-            className="w-full h-12 pl-12 pr-36 bg-slate-50/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition shadow-xs"
+            className="w-full h-12 pl-12 pr-36 md:pr-56 bg-slate-50/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition shadow-xs"
           />
 
           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {isPharmacy && (
+              <span
+                className="hidden md:flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-md bg-emerald-600 text-white tracking-wide"
+                title="First-Expired-First-Out batch allocation is active"
+              >
+                <Zap className="w-3 h-3" /> FEFO: ACTIVE
+              </span>
+            )}
             {searchQuery && (
               <button
                 onClick={() => {
@@ -739,13 +900,22 @@ export function App() {
                     <th className="py-3.5 px-5">Batch / Expiry</th>
                     <th className="py-3.5 px-5 text-center">Quantity</th>
                     <th className="py-3.5 px-5 text-right">Unit Price</th>
+                    <th className="py-3.5 px-5 text-right">Tax</th>
                     <th className="py-3.5 px-6 text-right">Line Total</th>
                     <th className="py-3.5 px-4 text-center w-12"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                   {cart.map((item) => (
-                    <tr key={item.cartId} className="hover:bg-slate-50/80 dark:hover:bg-slate-900/50 transition">
+                    <tr
+                      key={item.cartId}
+                      onClick={() => setSelectedCartId(item.cartId === selectedCartId ? null : item.cartId)}
+                      className={`transition cursor-pointer ${
+                        selectedCartId === item.cartId
+                          ? 'bg-emerald-50/70 dark:bg-emerald-950/25 shadow-[inset_2px_0_0_0_#15803d]'
+                          : 'hover:bg-slate-50/80 dark:hover:bg-slate-900/50'
+                      }`}
+                    >
                       <td className="py-4 px-6">
                         <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-snug">{item.productName}</div>
                         <div className="text-xs text-slate-400 font-mono mt-1">
@@ -790,14 +960,35 @@ export function App() {
                       <td className="py-4 px-5 text-right font-mono text-slate-600 dark:text-slate-300 font-medium">
                         ${item.unitPrice.toFixed(2)}
                       </td>
+                      <td className="py-4 px-5 text-right font-mono text-slate-500 dark:text-slate-400">
+                        {item.taxRate}%
+                      </td>
                       <td className="py-4 px-6 text-right font-mono font-bold text-slate-900 dark:text-slate-100 text-sm">
-                        ${((item.quantity * item.unitPrice) * (1 + item.taxRate / 100)).toFixed(2)}
+                        {(() => {
+                          const lineGross = item.quantity * item.unitPrice;
+                          const lineNet = Math.max(0, lineGross - item.discountAmount);
+                          return (
+                            <>
+                              ${(lineNet * (1 + item.taxRate / 100)).toFixed(2)}
+                              {item.discountAmount > 0 && (
+                                <div className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 font-normal">
+                                  -${item.discountAmount.toFixed(2)} disc
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </td>
                       <td className="py-4 px-4 text-center">
                         <button
-                          onClick={() => removeCartItem(item.cartId)}
-                          className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-md hover:bg-rose-50 dark:hover:bg-slate-800 transition"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeCartItem(item.cartId);
+                            if (selectedCartId === item.cartId) setSelectedCartId(null);
+                          }}
+                          className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-md hover:bg-rose-50 dark:hover:bg-slate-800 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                           title="Remove item"
+                          aria-label={`Remove ${item.productName} from cart`}
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -814,9 +1005,11 @@ export function App() {
             <div className={`px-5 py-2.5 border-t text-xs font-semibold flex items-center gap-2.5 ${
               statusNotification.type === 'error'
                 ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-900/70 text-rose-800 dark:text-rose-300'
-                : 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900/70 text-emerald-800 dark:text-emerald-300'
+                : statusNotification.type === 'info'
+                  ? 'bg-sky-50 dark:bg-sky-950/50 border-sky-200 dark:border-sky-900/70 text-sky-800 dark:text-sky-300'
+                  : 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900/70 text-emerald-800 dark:text-emerald-300'
             }`}>
-              <span>{statusNotification.type === 'error' ? '⚠️' : '✓'}</span>
+              <span>{statusNotification.type === 'error' ? '⚠️' : statusNotification.type === 'info' ? 'ℹ️' : '✓'}</span>
               <span>{statusNotification.text}</span>
             </div>
           )}
@@ -832,24 +1025,41 @@ export function App() {
                 <span className="text-3xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">
                   ${cartGrandTotal.toFixed(2)}
                 </span>
+                <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                  Items: {cart.length} | Total Qty: {totalItemCount} units
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs space-y-2">
               <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
                 <span className="font-medium">Subtotal</span>
                 <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">${cartSubtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
-                <span className="font-medium">Tax / VAT (5%)</span>
+                <span className="font-medium">Tax / VAT</span>
                 <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">${cartTax.toFixed(2)}</span>
               </div>
               {cartDiscount > 0 && (
-                <div className="col-span-2 flex justify-between items-center text-rose-600 dark:text-rose-400">
-                  <span className="font-medium">Discounts</span>
+                <div className="flex justify-between items-center text-rose-600 dark:text-rose-400">
+                  <span className="font-medium">Discount</span>
                   <span className="font-mono font-semibold">-${cartDiscount.toFixed(2)}</span>
                 </div>
               )}
+              <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                <span className="font-medium">Round Off</span>
+                <span
+                  className={`font-mono font-semibold ${
+                    cartRoundOff < 0
+                      ? 'text-rose-600 dark:text-rose-400'
+                      : cartRoundOff > 0
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-slate-800 dark:text-slate-200'
+                  }`}
+                >
+                  {cartRoundOff >= 0 ? '+' : '-'}${Math.abs(cartRoundOff).toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -1057,6 +1267,31 @@ export function App() {
         </div>
       </div>
 
+      {/* 3. BOTTOM STATUS BAR (DESIGN.md §2) */}
+      <footer className="h-9 px-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-4 text-[11px] font-mono text-slate-500 dark:text-slate-400 shrink-0 select-none transition-colors duration-200">
+        <span className="flex items-center gap-2 truncate">
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${
+              dbStatus?.ok ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+            }`}
+          />
+          <span className="truncate">
+            STATUS: {dbStatus?.ok ? 'Connected to DB' : dbStatus ? 'DB Unreachable' : 'Checking DB…'}
+            (Ping: {dbStatus?.ok ? `${dbStatus.ping}ms` : '—'})
+          </span>
+        </span>
+        <span className="truncate">
+          Last Scan: {lastScanCode ? `#${lastScanCode}` : '—'} (Ingestion:{' '}
+          {lastScanLatency > 0 ? `${lastScanLatency}ms` : '—'})
+        </span>
+        <button
+          onClick={() => setShowShortcutsHelp(true)}
+          className="shrink-0 hover:text-emerald-600 dark:hover:text-emerald-400 transition underline underline-offset-2 decoration-dotted focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+        >
+          Keyboard Shortcuts (F1)
+        </button>
+      </footer>
+
       {/* 4. MODALS & PREVIEWS */}
       {completedInvoice && (
         <ThermalReceipt
@@ -1107,6 +1342,72 @@ export function App() {
         />
       )}
 
+      {/* F8: Line Discount Dialog (DESIGN.md §7) */}
+      {f8Target && (
+        <div className="modal-overlay" onClick={() => setF8Target(null)}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: '380px', padding: '24px' }}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-label="Apply line discount"
+          >
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">Line Discount (F8)</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 truncate">
+              {cart.find(i => i.cartId === f8Target)?.productName || 'Cart line'}
+            </p>
+
+            <div className="flex gap-2 mb-3">
+              {(['%', 'FIXED'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setF8Mode(mode)}
+                  className={`flex-1 h-9 text-xs font-bold rounded-lg border transition ${
+                    f8Mode === mode
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  {mode === '%' ? 'Percent %' : 'Fixed $'}
+                </button>
+              ))}
+            </div>
+
+            <input
+              autoFocus
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder={f8Mode === '%' ? 'e.g. 10 for 10%' : 'e.g. 2.50 off'}
+              value={f8Value}
+              onChange={e => setF8Value(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  applyLineDiscount();
+                }
+              }}
+              className="w-full h-11 px-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-emerald-500 rounded-lg text-sm font-bold font-mono text-slate-900 dark:text-slate-100 focus:outline-none transition"
+            />
+
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setF8Target(null)}
+                className="flex-1 h-10 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition"
+              >
+                Cancel (Esc)
+              </button>
+              <button
+                onClick={applyLineDiscount}
+                className="flex-1 h-10 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-xs"
+              >
+                Apply Discount
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showShortcutsHelp && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '440px', padding: '24px' }}>
@@ -1126,10 +1427,13 @@ export function App() {
                   ['F2', 'Focus Product Search'],
                   ['F3', 'Camera Barcode Scanner'],
                   ['F4', 'Toggle Prescription Drawer'],
+                  ['F8', 'Discount Selected Cart Line'],
                   ['F9', 'Cash Drawer / Z-Report'],
                   ['F12', 'Complete Checkout Transaction'],
                   ['⌘K / Ctrl+K', 'Barcode Scanner Simulator'],
-                  ['Esc', 'Clear Cart or Dismiss Dialog']
+                  ['+ / -', 'Increase / Decrease Selected Line Qty'],
+                  ['Delete', 'Remove Selected Line from Cart'],
+                  ['Esc', 'Dismiss Dialog, Else Clear Cart']
                 ].map(([key, desc]) => (
                   <tr key={key}>
                     <td className="py-2.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">{key}</td>

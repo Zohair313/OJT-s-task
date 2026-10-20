@@ -185,9 +185,11 @@ export class CheckoutService {
         });
       }
 
+      // DESIGN.md §4: Raw in integer cents; Grand Total = nearest whole dollar;
+      // Round Off = Grand − Raw (e.g. raw $103.95 → grand $104.00, round-off +$0.05)
       const rawGrandTotalCents = subtotalCents - totalDiscountCents + totalTaxCents;
-      const grandTotalCents = rawGrandTotalCents; // Can apply rounding if needed
-      const roundOffCents = 0;
+      const grandTotalCents = Math.round(rawGrandTotalCents / 100) * 100;
+      const roundOffCents = grandTotalCents - rawGrandTotalCents;
 
       const subtotal = Number((subtotalCents / 100).toFixed(2));
       const discountAmount = Number((totalDiscountCents / 100).toFixed(2));
