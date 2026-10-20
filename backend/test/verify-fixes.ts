@@ -133,7 +133,7 @@ async function main() {
   // 6. Sold-out batch -> 409 from the DB path (no silent clamp)
   const raceCheckout = await api('POST', '/checkout/commit', {
     drawerId: 'drw-retail-01',
-    items: [{ productId: 'prod-race-condition', quantity: 1 }],
+    items: [{ productId: 'prod-race-t-retail-001', quantity: 1 }],
     payment: { method: 'CASH', tenderedAmount: 50 }
   });
   check('Sold-out race product returns 409 (no silent clamp)',

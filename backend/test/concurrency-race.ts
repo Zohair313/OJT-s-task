@@ -1,6 +1,10 @@
 import { concurrencyTestService } from '../src/services/concurrencyTestService.js';
+import { dbReady, isPgConnected } from '../src/db/database.js';
 
 async function runStandaloneConcurrencyTest() {
+  // Wait for full DB init (connect + migrate + seed + hydrate) before the race,
+  // otherwise PG setup writes are silently skipped (isPgConnected still false).
+  await dbReady;
   console.log('\x1b[36m%s\x1b[0m', '===============================================================');
   console.log('\x1b[32m%s\x1b[0m', '🧪 EXECUTING AUTOMATED CONCURRENCY LOAD & ROW-LEVEL LOCK TEST');
   console.log('\x1b[36m%s\x1b[0m', '   Target: 20 Simultaneous Checkout Threads vs 1 Unit of Stock');

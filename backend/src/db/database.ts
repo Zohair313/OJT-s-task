@@ -403,5 +403,8 @@ export async function initializeDatabase() {
   }
 }
 
-// Automatically trigger initialization
-initializeDatabase();
+// Automatically trigger initialization.
+// `dbReady` lets callers await full init (connect + migrate + seed + hydrate)
+// instead of racing against it — the standalone concurrency test previously
+// ran before `isPgConnected` flipped, silently skipping all PG writes.
+export const dbReady = initializeDatabase();
