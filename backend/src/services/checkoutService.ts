@@ -352,6 +352,8 @@ export class CheckoutService {
                 `, [item.quantity, item.batchId]);
 
                 if (upd.rowCount === 0) {
+                  // Transaction will roll back, so lockedQty still reflects DB truth
+                  syncCacheFromLockedQty(lockedQty);
                   throw {
                     status: 409,
                     code: 'CONCURRENCY_STOCK_DEPLETED',
