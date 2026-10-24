@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { dbStore, pgPool, isPgConnected } from '../db/database.js';
 import { CashDrawer, ZReport, CloseDrawerDTO } from '../types/index.js';
 
+/** Open (self-healing) drawer query in PostgreSQL, used only for diagnostics. */
+
 export class ReconciliationService {
   /**
    * Open a new Cashier Shift Drawer session
@@ -82,10 +84,14 @@ export class ReconciliationService {
     const effectiveTenantId = drawer.tenantId;
 
     // Ingest all invoices belonging to this drawer session
-    const invoices = Array.from(dbStore.invoices.values()).filter(
+    const invoicesOnDrawer = Array.from(dbStore.invoices.values()).filter(
       inv => inv.drawerId === dto.drawerId && inv.status === 'COMPLETED'
     );
-
+    const invoices = invoicesOnDrawer;
+    if (process.env.DEBUG_MARGIN) {
+      console.log('[DEBUG_MARGIN] drawerId=', dto.drawerId, 'invoicesOnDrawer=', invoices.length,
+        'openDrawers=', Array.from(dbStore.cashDrawers.values()).filter(d => d.status === 'OPEN').map(d => d.id));
+    }
     let totalCashSales = 0;
     let totalCardSales = 0;
     let totalUpiSales = 0;
@@ -109,8 +115,22 @@ export class ReconciliationService {
     const actualCountedCash = Number(dto.actualCountedCash.toFixed(2));
     const cashVariance = Number((actualCountedCash - expectedCashInDrawer).toFixed(2));
 
-    // Calculate gross margin estimate (Sales - Cost)
-    const grossMargin = Number((totalCashSales + totalCardSales + totalUpiSales - totalTaxCollected) * 0.35).toFixed(2);
+    // Gross Margin = Net Sales (excl. VAT) − COGS.
+    // COGS is summed from the ACTUAL batch cost prices (batches.cost_price =
+    // what we paid the supplier per unit), never a guessed percentage of sales.
+    let cogsTotal = 0;
+    for (const inv of invoices) {
+      for (const item of inv.items) {
+        const batch = dbStore.batches.get(item.batchId);
+        if (batch) {
+          cogsTotal += item.quantity * batch.costPrice;
+        } else {
+          console.warn(`⚠️  [Z-REPORT] Batch '${item.batchId}' missing from cache — COGS for '${item.productName}' counted as $0.00`);
+        }
+      }
+    }
+    const netSalesExclTax = Number((totalCashSales + totalCardSales + totalUpiSales - totalTaxCollected).toFixed(2));
+    const grossMargin = Number((netSalesExclTax - cogsTotal).toFixed(2));
 
     const reportCode = `ZREP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`;
 
